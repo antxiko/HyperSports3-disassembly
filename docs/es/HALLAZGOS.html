@@ -1,0 +1,117 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hallazgos — Hyper Sports 3 (Konami, 1985)</title>
+<style>
+:root{--tinta:#cfd0d4;--suave:#83868f;--fondo:#000;--panel:#0c0e13;--linea:#23262e;
+  --rojo:#ff897d;--cyan:#65dbef;--verde:#3eb849;--oro:#ded087}
+@media (prefers-color-scheme:light){:root{--tinta:#191a1e;--suave:#5a5d66;--fondo:#e9e7e1;
+  --panel:#f7f6f2;--linea:#d0cdc5;--rojo:#b23f34;--cyan:#1c6b7c;--verde:#2b7734;--oro:#8a7420}}
+:root[data-theme="dark"]{--tinta:#cfd0d4;--suave:#83868f;--fondo:#000;--panel:#0c0e13;
+  --linea:#23262e;--rojo:#ff897d;--cyan:#65dbef;--verde:#3eb849;--oro:#ded087}
+:root[data-theme="light"]{--tinta:#191a1e;--suave:#5a5d66;--fondo:#e9e7e1;--panel:#f7f6f2;
+  --linea:#d0cdc5;--rojo:#b23f34;--cyan:#1c6b7c;--verde:#2b7734;--oro:#8a7420}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fondo);color:var(--tinta);padding:0 1.25rem 6rem;
+  font:15px/1.7 ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+.w{max-width:1120px;margin:0 auto}
+.n{max-width:68ch}
+h1,h2,h3,h4{font-weight:400;text-wrap:balance}
+a{color:var(--cyan)}
+img{image-rendering:pixelated;max-width:100%;height:auto;display:block}
+header.top{display:flex;flex-direction:column;align-items:center;gap:1.5rem;
+  padding:4rem 0 2rem;text-align:center}
+header.top img{width:min(100%,642px)}
+.claim{max-width:60ch;color:var(--suave);font-size:1.05rem}
+.claim b{color:var(--tinta);font-weight:400}
+.ficha{display:flex;flex-wrap:wrap;justify-content:center;gap:0 1.5rem;width:100%;
+  font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--suave);
+  border-top:1px solid var(--linea);border-bottom:1px solid var(--linea);padding:.85rem 0}
+.ficha b{color:var(--rojo);font-weight:400}
+nav{display:flex;flex-wrap:wrap;gap:1.25rem;justify-content:center;padding:1.25rem 0;
+  font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+nav a{color:var(--suave);text-decoration:none;border-bottom:1px solid transparent}
+nav a:hover,nav a:focus{color:var(--tinta);border-bottom-color:var(--rojo)}
+nav.docs{border-top:1px solid var(--linea);border-bottom:1px solid var(--linea);
+  margin-bottom:1rem}
+section{margin-top:4.5rem;scroll-margin-top:1rem}
+section>h2{font-size:1rem;letter-spacing:.1em;text-transform:uppercase;
+  border-left:3px solid var(--rojo);padding-left:.9rem;margin:0 0 1.5rem}
+.cifras{display:grid;gap:1px;background:var(--linea);border:1px solid var(--linea);
+  grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+.cifra{background:var(--panel);padding:1.1rem}
+.cifra b{display:block;font-size:1.7rem;color:var(--oro);font-weight:400;
+  font-variant-numeric:tabular-nums;line-height:1.2}
+.cifra span{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--suave)}
+.hall{border-top:1px solid var(--linea);padding-top:1.75rem;margin-top:2.5rem}
+.hall:first-of-type{border-top:0;padding-top:0;margin-top:0}
+.hall h3{margin:0 0 .75rem;font-size:1.15rem;color:var(--rojo)}
+.hall h4{color:var(--oro);margin:1.5rem 0 .5rem;font-size:.95rem}
+.hall p{margin:0 0 1rem}
+pre.asm{background:var(--panel);border-left:2px solid var(--verde);margin:1.25rem 0;
+  padding:1rem 1.1rem;overflow-x:auto;font-size:13px;line-height:1.6;color:var(--tinta)}
+.par{display:grid;gap:1.25rem;grid-template-columns:1fr}
+@media(min-width:820px){.par{grid-template-columns:1fr 1fr}}
+.par figure{margin:0}
+table{border-collapse:collapse;width:100%;margin:1.25rem 0;font-size:13px;display:block;
+  overflow-x:auto}
+th,td{text-align:left;padding:.5rem .75rem;border-bottom:1px solid var(--linea)}
+th{color:var(--suave);font-weight:400;font-size:11px;letter-spacing:.07em;text-transform:uppercase}
+td.num{font-variant-numeric:tabular-nums;color:var(--oro)}
+.nivel{margin-top:2rem}
+.nivel h3{margin:0 0 .9rem;font-size:.95rem;letter-spacing:.06em;text-transform:uppercase}
+.nivel em{color:var(--cyan);font-style:normal}
+.sep{color:var(--suave);margin:0 .6rem}
+.rejilla{display:grid;gap:.9rem;grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+.rejilla figure{margin:0;background:var(--panel);box-shadow:0 0 0 1px var(--linea)}
+.rejilla figcaption{display:flex;justify-content:space-between;padding:.45rem .65rem;
+  font-size:11px;color:var(--suave);border-top:1px solid var(--linea)}
+.dir{font-variant-numeric:tabular-nums;color:var(--verde)}
+footer{margin-top:5rem;padding-top:1.5rem;border-top:1px solid var(--linea);
+  color:var(--suave);font-size:12px}
+
+/* Aviso de trabajo en curso: tiene que verse antes que las cifras, porque un
+   100% mal leido hace mas dano que no ponerlo. */
+.aviso{background:#3a2a10;border-left:3px solid var(--oro);margin:1.5rem auto;
+  padding:1rem 1.2rem;max-width:900px;border-radius:4px}
+.aviso p{margin:0;color:var(--tinta);font-size:15px;line-height:1.65}
+.galeria{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+  gap:1.5rem;margin:1.5rem 0}
+.galeria figure{margin:0}
+.galeria img{width:100%;height:auto;image-rendering:pixelated;
+  border:1px solid var(--linea);border-radius:3px}
+.galeria figcaption{color:var(--suave);font-size:13px;margin-top:.5rem}
+audio{display:block;width:100%;max-width:640px;margin:.75rem 0 1.5rem}
+</style>
+<div class="w"><nav class="top"><a href="index.html">Portada</a><a href="EMPEZAR.html">Empezar</a><a href="EL-JUEGO.html">El juego</a><a href="EL-CARTUCHO.html">El cartucho</a><a href="EL-CODIGO.html">El código</a><a href="HALLAZGOS.html" style=color:var(--tinta)>Hallazgos</a><a href="EN-EL-EMULADOR.html">En el emulador</a><a href="PREGUNTAS-ABIERTAS.html">Preguntas abiertas</a><a href="../FINDINGS.html" style="margin-left:auto;color:var(--oro)">English</a></nav>
+<h1 id="hallazgos">Hallazgos</h1>
+<p>Todo lo de aquí está medido sobre este cartucho, con las herramientas de <code>tools/</code>.</p>
+<h2 id="los-records-del-mundo-viven-en-la-ram">Los récords del mundo viven en la RAM</h2>
+<p>Los doce bytes que INIT copia de <code>0x40CF</code> a <code>0xE053</code> son las cuatro marcas a batir: <b>1&#x27;45&quot;34</b> en el ciclismo, <b>17,97 m</b> en el triple salto, <b>100 puntos</b> en el curling y <b>5,90 m</b> en la pértiga. Son los únicos valores de toda la RAM de trabajo que no arrancan a cero.</p>
+<p>Están en RAM y no en ROM porque el juego los <b>sobrescribe</b>: <code>0x93D1</code> mete el tiempo del ciclista encima del récord en cuanto se mejora. La ROM no guarda ningún récord, guarda un valor de salida.</p>
+<p>Los dos que se pueden cotejar cuadran con la época del cartucho: los <b>17,97 m</b> son los de Willie Banks, de junio de 1985, y los <b>5,90 m</b> los de Serguéi Bubka, de 1984.</p>
+<p>Y hay una tercera marca fechada donde no se espera: de los ocho listones del triple salto, el sexto es <b>17,89 m</b>, que era el récord del mundo de Joao Carlos de Oliveira.</p>
+<h2 id="la-demostracion-es-una-partida-grabada">La demostración es una partida grabada</h2>
+<p>Cada prueba tiene su cinta de mandos guardada en la ROM, y el bucle la va soltando fotograma a fotograma como si fuera el mando. Por eso la demostración hace siempre exactamente lo mismo, con las mismas marcas.</p>
+<p><b>El ciclismo no tiene grabación.</b> Ahí el rival se mueve con <code>ld a,r</code> —el registro de refresco de la DRAM, que va subiendo con cada instrucción— usado como dado. Es la única prueba en la que la demostración no sale igual dos veces.</p>
+<h2 id="seno-y-coseno-de-verdad">Seno y coseno de verdad</h2>
+<p>La tabla de <code>0x7346</code> son noventa grados de seno, un byte por grado, con el 0xFF en el noventa. Con ella y un desplazamiento de un cuarto de vuelta salen las dos componentes de cualquier ángulo.</p>
+<p>Y en el curling ni siquiera se calcula el ángulo: las dos curvas de la piedra <b>normalizan el vector</b> y se quedan con las dos componentes. La piedra sale recta sin que el cartucho sepa nunca cuántos grados lleva.</p>
+<h2 id="la-tabla-de-periodos-tiene-doce-valores-no-diez">La tabla de periodos tiene doce valores, no diez</h2>
+<p>Parecía tener diez entradas y sobraban dos índices. Los dos que faltaban están <b>escondidos en la entrada [0] de la tabla de pistas</b>, la que se daba por muerta porque ninguna pista la usa: sus dos bytes son la continuación de la tabla de al lado. <code>L_4D75</code> la indexa con el nibble alto del byte de nota, que llega hasta 0x0B, o sea doce.</p>
+<p>Es el mismo truco que la tabla de listones de la pértiga, apuntada <b>dos bytes por debajo</b> para que el índice empiece en uno en vez de en cero.</p>
+<h2 id="tres-trucos-de-desplazamiento-distintos">Tres trucos de desplazamiento distintos</h2>
+<p>Las cuatro pruebas mueven la pantalla, y ninguna lo hace igual. El <b>ciclismo</b> guarda el circuito en dos ventanas de la RAM y las desplaza una columna por fotograma. El <b>salto</b> guarda la pista dos veces, en su sitio y corrida cuatro píxeles, y alterna. El <b>curling</b> no guarda media pista: espeja la mitad derecha del hielo a mano, bit a bit.</p>
+<h2 id="el-ciclista-no-es-un-sprite">El ciclista no es un sprite</h2>
+<p>Son cuatro casillas de la tabla de patrones. Para moverse al píxel, <code>0x9CC7</code> genera al arrancar la prueba <b>ocho copias del dibujo corridas un píxel cada una</b>, rotando los bits; y de paso saca la máscara, que es el 0xFF al que se le van metiendo ceros por delante. Encima van cinco sprites, que son el corredor.</p>
+<p><img src="../imagenes/sprites-ciclista.png" alt="Las dieciséis versiones del ciclista"></p>
+<h2 id="el-atleta-con-pertiga-se-compone-de-dos-bloques">El atleta con pértiga se compone de dos bloques</h2>
+<p>En la carrerilla, el atleta no sale de ninguna tabla de figuras: son <b>tres piezas de <code>0x6E15</code> y las que traiga <code>0x6B6A</code></b>, más el sprite de la punta y las doce casillas de la pértiga. Los dos grupos comparten el contador de patrones, porque los patrones se descomprimen seguidos a <code>0x1800</code>.</p>
+<p>Cotejado contra la VRAM del emulador en el primer fotograma en que el cartucho lo dibuja: los seis sprites idénticos y <b>cero de 2.048 bytes de patrón distintos</b>.</p>
+<h2 id="diez-bytes-que-no-son-datos">Diez bytes que no son datos</h2>
+<p>Entre las figuras y los guiones relativos hay una rutina completa que <b>no llama nadie</b>: divide HL entre 32 sin perder por arriba. Es exactamente lo que hace a mano el reparto de la dirección de la piedra del curling. Alguien la escribió, la dejó de usar y nadie la borró.</p>
+<h2 id="la-marca-oculta-de-konami">La marca oculta de Konami</h2>
+<p>Los últimos dieciséis bytes son el título en katakana y del revés — ハイパースポーツ3—, su longitud, el 0x33 del RC-733 y un 0xAA. <b>No lo lee nadie.</b> La marca la descubrió <b>Manuel Pazos</b>.</p>
+<h2 id="lo-que-costo-las-imagenes">Lo que costó las imágenes</h2>
+<p>Las cinco pantallas están cotejadas byte a byte contra la VRAM de openMSX, y el cotejo destapó cosas que mirar el dibujo no destapaba:</p>
+<ul><li>El montaje del ciclismo no lo termina la rutina de montar la prueba, sino <b>la escena 0</b> (<code>L_91F9</code>), que trae el marco del marcador y 140 bytes de patrones de sprite. Sin ella faltaba medio marcador.</li><li>Los dos ciclistas no salían porque su fila la escribe un <code>ld a,020h / ld (0e0e3h),a</code> suelto en <code>0x54CD</code>, dentro del montaje de las variables.</li><li>El semáforo de la salida no es un semáforo: es <b>una pistola</b>, con su fogonazo y su GO.</li><li>Del curling faltaban <b>las dos escobas</b> —que no salen de la tabla de figuras, son un sprite suelto con la fila del jugador más 0x10— y los dos sprites de la raya, que son ocho bytes copiados a pelo desde <code>0xA911</code>.</li></ul>
+<footer><p><em>Hyper Sports 3</em> lo publico Konami para MSX en 1985; su numero de catalogo es RC-733 y son 32 KB. Todos los derechos sobre el juego siguen siendo de sus titulares. Este trabajo es de preservacion, estudio y documentacion, y la imagen del cartucho no se distribuye.</p></footer></div>

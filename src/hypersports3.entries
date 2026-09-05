@@ -1,0 +1,108 @@
+# Puntos de entrada que el trazado NO puede deducir solo.
+#
+# Cada uno lleva escrito POR QUE hace falta. Una entrada sin justificar es una
+# direccion metida a mano para que la cobertura cuadre, y eso es exactamente
+# lo que no se puede hacer sin dejar constancia.
+
+# El arranque: la cabecera del cartucho da INIT en 0x405A.
+0x405A   # INIT, la direccion que trae la cabecera del cartucho
+
+# ======================================================================
+# EL GANCHO DE LA INTERRUPCION
+# ======================================================================
+# INIT no arranca ningun bucle de juego por su cuenta: en 0x407E escribe un
+# `jp` (0xC3) en 0xFD9A y la direccion 0x4019 en 0xFD9B, que es H.KEYI. De ahi
+# cuelga el cuadro entero.
+#
+#     0x407E  3e c3        ld a,0c3h
+#     0x4080  32 9a fd     ld (0fd9ah),a
+#     0x4083  21 19 40     ld hl,04019h
+#     0x4086  22 9b fd     ld (0fd9bh),hl
+#
+# El cerrojo de reentrada de (0xE005) lo confirma: el propio gancho mira
+# `bit 0,(hl)` sobre 0xE005 en 0x4021 y se salta el cuadro entero si ya estaba
+# dentro.
+0x4019   # H.KEYI: lo engancha INIT en 0x4083 (`ld hl,04019h / ld (0fd9bh),hl`)
+
+# ======================================================================
+# LAS TABLAS PEGADAS DETRAS DEL `call`
+# ======================================================================
+# El despachador de 0x4050 es el mismo que usan los demas cartuchos de esta
+# familia de Konami (Mopi Ranger, Road Fighter, Ping Pong, Soccer):
+#
+#     0x4050  e1           pop hl
+#     0x4051  87           add a,a
+#     0x4052  cd 46 40     call 04046h      ; hl += a, con acarreo al alto
+#     0x4055  5e           ld e,(hl)
+#     0x4056  23           inc hl
+#     0x4057  56           ld d,(hl)
+#     0x4058  eb           ex de,hl
+#     0x4059  e9           jp (hl)
+#
+# El `pop hl` recupera su propia direccion de retorno, que es donde empieza la
+# tabla, porque la tabla va PEGADA detras del `call`. El trazado no puede
+# deducirlas siguiendo saltos, asi que van declaradas aqui.
+#
+# Los `call 0x4050` de la ROM son ONCE, y las once son llamadas de verdad: no
+# hay ni un `cd 50 40` que caiga dentro de un bloque de datos por casualidad.
+#
+# Cuantas entradas tiene cada tabla no se estima. Lo fijan dos encajes que se
+# comprueban byte a byte:
+#
+#   1. toda entrada cae dentro del cartucho, 0x4000..0xBFFF;
+#   2. NINGUNA entrada apunta dentro de la propia tabla.
+#
+# La segunda es la que decide, y es la que corrige a ojo: la tabla de 0xA588
+# parece de cuatro entradas, pero su entrada [1] vale 0xA58E, que caeria dentro
+# de la tabla si fueran cuatro (acabaria en 0xA590). Son TRES, y 0xA58E es a la
+# vez esa entrada y el byte donde sigue el codigo.
+#
+#   0x4109 +  9*2 = 0x411B = su entrada mas baja
+#   0x5548 +  4*2 = 0x5550 = sus entradas [1] y [3], que son la misma
+#   0x5558 +  4*2 = 0x5560 = su entrada mas baja
+#   0x58A3 +  8*2 = 0x58B3 = su entrada mas baja
+#   0x600F +  8*2 = 0x601F = su entrada mas baja
+#   0x648D +  7*2 = 0x649B = su entrada mas baja
+#   0x9111 +  8*2 = 0x9121 ; detras sigue `ld c,a / ld a,(0e123h) / and a`
+#   0x9135 +  6*2 = 0x9141 = su entrada mas baja
+#   0xA484 +  8*2 = 0xA494 ; detras sigue `ld ix,0e0a0h`
+#   0xA588 +  3*2 = 0xA58E = su entrada [1]
+#   0xA934 + 13*2 = 0xA94E = su entrada mas baja
+#
+# Dos de las once llevan ademas el numero de entradas escrito en el propio
+# codigo que llama, en forma de mascara justo antes del `call`:
+#   0x5545  `ld a,(0e06ah) / and 003h` -> cuatro entradas, ni una mas
+#   0x5555  `ld a,(0e09eh) / and 00fh` -> como mucho dieciseis; el encaje
+#           las deja en cuatro
+!tabla 0x4109    9   # el reparto de escenas, desde el `call 0x4050` de 0x4106
+!tabla 0x5548    4   # desde 0x5545
+!tabla 0x5558    4   # desde 0x5555
+!tabla 0x58a3    8   # desde 0x58A0
+!tabla 0x600f    8   # desde 0x600C
+!tabla 0x648d    7   # desde 0x648A
+!tabla 0x9111    8   # desde 0x910E
+!tabla 0x9135    6   # desde 0x9132
+!tabla 0xa484    8   # desde 0xA481
+!tabla 0xa588    3   # desde 0xA585
+!tabla 0xa934   13   # desde 0xA931
+
+# ======================================================================
+# LAS DIRECCIONES DE RETORNO EMPUJADAS A MANO
+# ======================================================================
+# El truco es el de siempre: `ld hl,<direccion> / push hl` antes de caer en el
+# despachador, para que el `ret` de la escena no vuelva a quien llamo sino a
+# esa direccion. El trazado no puede seguir un retorno fabricado.
+#
+# Las tres desensamblan como codigo Z80 coherente desde el primer byte, y
+# ninguna cae a mitad de instruccion de nada ya trazado.
+#
+# Las dos primeras las empuja el mismo sitio, el reparto de escenas de 0x40E3,
+# y CUAL de las dos depende del bit 6 de (0xE002):
+#
+#     0x40E7  ld a,(0e002h) / and 040h
+#     0x40EC  ld hl,04388h        ; con el bit puesto
+#     0x40F1  ld hl,04288h        ; sin el
+#     0x4105  push hl             ; solo si la escena es < 6 y no es la 3 ni la 4
+0x4288   # lo empuja el reparto de escenas en 0x4105, con (0xE002) bit 6 a cero
+0x4388   # lo mismo, con el bit 6 puesto
+0x5A2F   # lo empuja 0x5896 `ld hl,05a2fh`, y solo si (0xE08E) no es cero

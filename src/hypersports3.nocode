@@ -1,0 +1,15 @@
+# Zonas que NO son codigo aunque el trazado pueda entrar en ellas.
+#
+# Se van anadiendo segun el trazado las descubre: tablas de words en linea
+# detras de un call, guiones de dibujo, bloques graficos.
+
+# La cabecera del cartucho: "AB" y las cuatro direcciones de la ROM (INIT,
+# STATEMENT, DEVICE, TEXT), mas los seis bytes reservados. No es codigo.
+0x4000 0x4010
+
+# La marca oculta de Konami, al final del cartucho. Trece bytes de titulo en
+# orden inverso, su longitud, el 0x33 del RC-733 y el 0xAA que cierra:
+#   33 00 91 ba b8 9d 8c 00 ba b8 99 81 99   0d 33 aa
+# leidos al reves salen HA I HA(o) - _ SU HO(o) - TU _ 3, o sea
+# ハイパースポーツ 3. No lo lee nadie: es la firma de la casa.
+0xBFF0 0xC000

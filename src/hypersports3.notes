@@ -1,0 +1,3785 @@
+# ======================================================================
+# HYPER SPORTS 3 (RC-733) - anotaciones del desensamblado
+# ======================================================================
+# Cada directiva D declara un rango de datos con su nombre y con la MEDIDA de
+# la que sale. Ningun limite esta estimado a ojo.
+
+# ======================================================================
+# LA CABECERA
+# ======================================================================
+D 0x4000 0x4010 cabecera_del_cartucho  "AB" y la direccion de INIT (0x405A); STATEMENT, DEVICE y TEXT a cero, y los seis bytes reservados tambien
+F 0x4000 w
+
+# ======================================================================
+# EL REPARTO DE ESCENAS: las once tablas del despachador
+# ======================================================================
+# Las once van PEGADAS detras de su `call L_4050`, que es el despachador que
+# comparten los cartuchos de esta familia de Konami:
+#
+#     pop hl / add a,a / call L_4046 / ld e,(hl) / inc hl / ld d,(hl)
+#     ex de,hl / jp (hl)
+#
+# El `pop hl` recupera su propia direccion de retorno, o sea el principio de
+# la tabla. La cuenta de entradas no se estima: la fija el encaje de que
+# ninguna entrada puede apuntar dentro de la propia tabla. Ver
+# src/hypersports3.entries, donde estan las once con su aritmetica al byte.
+D 0x4109 0x411b tabla_de_escenas  9 entradas, la mas alta del juego: reparte segun (0xE003) el logotipo, el titulo, las pruebas y el final
+F 0x4109 w
+D 0x5548 0x5550 tabla_de_subescenas_5548  4 entradas; el `and 003h` de 0x5542 dice que son cuatro y no mas
+F 0x5548 w
+D 0x5558 0x5560 tabla_de_subescenas_5558  4 entradas; detras sigue la primera de ellas, 0x5560
+F 0x5558 w
+D 0x58a3 0x58b3 tabla_de_subescenas_58a3  8 entradas; detras sigue la primera, 0x58B3
+F 0x58a3 w
+D 0x600f 0x601f tabla_de_subescenas_600f  8 entradas; detras sigue la primera, 0x601F
+F 0x600f w
+D 0x648d 0x649b tabla_de_subescenas_648d  7 entradas; detras sigue la primera, 0x649B
+F 0x648d w
+D 0x9111 0x9121 tabla_de_subescenas_9111  8 entradas; detras NO sigue ninguna, sino `ld c,a / ld a,(0e123h) / and a`
+F 0x9111 w
+D 0x9135 0x9141 tabla_de_subescenas_9135  6 entradas; detras sigue la primera, 0x9141
+F 0x9135 w
+D 0xa484 0xa494 tabla_de_subescenas_a484  8 entradas, simetricas dos a dos; detras sigue `ld ix,0e0a0h`
+F 0xa484 w
+D 0xa588 0xa58e tabla_de_subescenas_a588  3 entradas; la cuarta seria 0xA779 pero entonces la entrada [1] caeria dentro de la tabla
+F 0xa588 w
+D 0xa934 0xa94e tabla_de_subescenas_a934  13 entradas, la segunda mas larga; detras sigue la primera, 0xA94E
+F 0xa934 w
+
+# ======================================================================
+# LO QUE INIT COPIA A LA RAM
+# ======================================================================
+# Los doce bytes que INIT copia a 0xE053 son LOS RECORDS DEL MUNDO, en BCD y
+# con el byte de menos peso delante, tres por prueba y en el mismo orden en
+# que L_57AB y L_9210 los reparten:
+#     0xE053  34 45 01   ciclismo,     1:45.34
+#     0xE056  97 17 00   triple salto,   17.97 m
+#     0xE059  00 00 01   curling,       100 puntos
+#     0xE05C  90 05 00   pertiga,         5.90 m
+# Los dos que se pueden cotejar cuadran con la epoca del cartucho: los 17,97
+# de Willie Banks son de junio de 1985 y los 5,90 de Sergei Bubka de 1984. Y
+# no son constantes: viven en RAM porque el juego los SOBRESCRIBE cuando el
+# jugador los bate (L_93D1 en el ciclismo), asi que duran lo que dure la
+# maquina encendida.
+D 0x40cf 0x40db records_del_mundo  12 bytes que INIT copia a 0xE053: los cuatro records, tres bytes en BCD cada uno
+F 0x40cf 12
+
+# ======================================================================
+# LOS OCHO REGISTROS DEL VDP
+# ======================================================================
+# El bucle de 0x4488 los escribe en orden, del 0 al 7, sacando cada valor de
+# esta tabla. De aqui sale TODO el reparto de la VRAM de este cartucho:
+#
+#   R0=02 R1=E2   SCREEN 2, pantalla activa, interrupcion, sprites de 16x16
+#   R2=0E         tabla de nombres          0x3800..0x3AFF
+#   R3=7F         color: base 0, mascara 0x3FF -> 0x0000..0x17FF
+#   R4=07         patrones: base 0x2000     -> 0x2000..0x37FF
+#   R5=76         atributos de sprite       0x3B00..0x3B7F
+#   R6=03         patrones de sprite        0x1800..0x1FFF
+#   R7=E4         tinta 14 sobre fondo 4
+#
+# En SCREEN 2 los R3 y R4 no son una direccion sino una base y una mascara, y
+# por eso la pantalla queda partida en tres tercios con sus propios patrones:
+# de ahi la rutina L_4405, que descomprime el mismo bloque en los tres.
+D 0x4492 0x449a registros_del_vdp  los ocho valores, en orden, que escribe el bucle de 0x4488
+F 0x4492 8
+
+# ======================================================================
+# LA PANTALLA DEL LOGOTIPO Y LA DEL TITULO
+# ======================================================================
+# Los tamanos NO estan estimados: cada bloque comprimido se ha EJECUTADO con
+# tools/rle.py, que es el descompresor del cartucho rehecho en Python, y cada
+# guion de rotulo con tools/guiones.py. Lo que cierra cada uno es su propio
+# byte final -0x00 en el comprimido, 0xFF en el guion-, no una cuenta a ojo.
+D 0x4514 0x4525 rle_konami_software  17 B -> 20 de VRAM: la raya de doce tiles de 0x394A y la palabra SOFTWARE en 0x396C
+F 0x4514 17
+D 0x4525 0x454c guion_del_menu  39 B, tres destinos: (c)KONAMI 1985 en 0x396A, PLAY SELECT en 0x39EB y 1PLAYER en 0x3A4D
+F 0x4525 13,14,12
+D 0x454c 0x4557 guion_2players  11 B: 2PLAYERS en 0x3A8D
+F 0x454c 11
+D 0x4557 0x455a guion_del_cursor  3 B SIN cabecera: los dos tiles de la manita, con el destino ya en HL; entra por L_441D desde 0x48AA
+F 0x4557 3
+D 0x455a 0x4561 guion_foul  7 B: FOUL en la casilla 0x3AAE de la pantalla; lo pinta 0xABC2 cuando la piedra del curling se sale de la pista
+F 0x455a 7
+D 0x4561 0x4565 guion_1up  4 B SIN cabecera: 1UP, con el destino ya en HL; lo carga 0x43AA
+F 0x4561 4
+D 0x4565 0x4569 guion_2up  4 B SIN cabecera: 2UP, con el destino ya en HL; lo carga 0x43AF
+F 0x4565 4
+D 0x459b 0x470c rle_la_fuente  369 B -> 384 de VRAM en 0x2080: los 48 patrones de la fuente, del tile 0x10 al 0x3F
+F 0x459b 16
+D 0x470c 0x471f rle_nombres_del_logotipo  19 B -> 16 casillas: el trozo de tabla de nombres que el propio bloque situa
+F 0x470c 19
+D 0x4773 0x480a rle_tiles_grandes  151 B -> 216 de VRAM en 0x2200: los 27 patrones del tile 0x40 al 0x5A
+F 0x4773 16
+D 0x4878 0x4889 lista_de_tiles_del_rotulo  17 B: pares [cuantos tiles][cuanto saltar] que escriben el rotulo HYPER SPORTS 3 en la tabla de nombres desde 0x386C, con el indice de tile subiendo solo desde 0xB0; el 0x00 cierra
+F 0x4878 2
+D 0x48ad 0x4a88 rle_patrones_del_rotulo  475 B -> 528 de VRAM en 0x2580: los 66 patrones del rotulo, del tile 0xB0 al 0xF1
+F 0x48ad 16
+D 0x4a88 0x4aa5 rle_color_del_rotulo  29 B -> las mismas 528 posiciones en 0x0580, o sea el color de esos 66 tiles
+F 0x4a88 16
+D 0x4aa5 0x4ad2 bloques_repetidos_del_rotulo  45 B: cuatro entradas [cuantas veces][destino de VRAM][8 bytes de patron] y el 0x00 que cierra; el bucle de 0x4835 repite cada bloque de ocho bytes en casillas consecutivas de los tres tercios
+F 0x4aa5 11,11,11,11,1
+
+# ======================================================================
+# EL SONIDO
+# ======================================================================
+# El reproductor entero vive entre 0x4AD2 y 0x4DA2, y sus datos justo detras.
+# La puerta es L_4ADD: se le pasa en A el numero de sonido, con las
+# prioridades en los bits de arriba.
+#
+# La tabla de pistas acaba EXACTAMENTE en su entrada mas baja, 0x4E1C, que es
+# donde empiezan los datos. Su entrada [0] vale 0x393C, que no es ni una
+# direccion de la ROM: el sonido 0 no existe, porque el reproductor arranca
+# comparando con `cp 001h`.
+# LA TABLA DE PERIODOS TIENE DOCE VALORES, NO DIEZ, y los dos ultimos estan
+# ESCONDIDOS DENTRO DE LA TABLA DE PUNTEROS QUE VIENE DETRAS.
+#
+# L_4D75 la indexa con el nibble alto del byte de nota, que llega hasta 0x0B
+# antes de que el `sub 00ch` mande el 0x0C al silencio. Con 0x0A y 0x0B leeria
+# 0x4DAC y 0x4DAD, que son los dos bytes de la entrada [0] de la tabla de
+# pistas. Y esos dos bytes valen 0x3C y 0x39.
+#
+#      n   byte   107 * 2^(-n/12)        n   byte   107 * 2^(-n/12)
+#      0   0x6B      107,00              6   0x4C       75,66
+#      1   0x65      100,99              7   0x47       71,41
+#      2   0x5F       95,33              8   0x43       67,41
+#      3   0x5A       89,98              9   0x40       63,62
+#      4   0x55       84,93             10   0x3C       60,05   <- 0x4DAC
+#      5   0x50       80,16             11   0x39       56,68   <- 0x4DAD
+#
+# Los doce caen a menos de uno del semitono exacto: es una octava cromatica
+# entera. Asi que la entrada [0] de la tabla de pistas, la que apunta al
+# 0x393C que no es ninguna melodia, NO es una entrada muerta: son los dos
+# semitonos de arriba. Konami solapo las dos tablas para ahorrarse dos bytes.
+#
+# Las dos directivas D de abajo tienen que partir por 0x4DAC porque un byte no
+# puede salir dos veces en el listado, pero los doce valores son uno solo.
+# Medido con tools/recorre_pistas.py, que recorre las pistas largas que el
+# cartucho arranca de verdad: los nibbles 0x0A y 0x0B salen en las 0xA3, 0xA6
+# y 0xAC, o sea que los dos ultimos SE USAN.
+D 0x4da2 0x4dac tabla_de_periodos  los diez primeros de los DOCE semitonos de la octava, cada uno 0,944 veces el anterior; los dos que faltan son los dos primeros bytes del bloque de abajo
+F 0x4da2 10
+D 0x4dac 0x4e1c tabla_de_pistas  56 punteros de dos bytes que L_4B32 indexa con el numero de sonido; su entrada [0] no es un puntero: sus dos bytes son los semitonos 10 y 11 de la tabla de arriba, y por eso parece apuntar a 0x393C
+F 0x4dac w
+D 0x4e1c 0x53b0 pistas_de_sonido  1428 bytes de melodias y efectos; cada byte lleva la nota en el nibble alto y la duracion en el bajo, y el nibble alto 0x0C es el silencio
+F 0x4e1c 16
+D 0x53b0 0x53b1 fin_de_pista  un solo 0xFF, al que apuntan las tres ultimas entradas de la tabla y la [1]: la pista muda
+F 0x53b0 1
+
+# ======================================================================
+# LOS ROTULOS DE LAS CUATRO PRUEBAS
+# ======================================================================
+# 0x5A90 es la que dice EN QUE ORDEN van las pruebas, y no hay que suponerlo:
+# el codigo de 0x5913 hace `ld a,(0e06ah) / and 003h / add a,a` y entra aqui,
+# o sea que el indice es el mismo (0xE06A) que reparte el juego entero.
+#
+#     (0xE06A) & 3 = 0 -> 0x5AB3  CYCLING
+#                    1 -> 0x5A98  TRIPLE JUMP
+#                    2 -> 0x5ABD  CURLING
+#                    3 -> 0x5AA6  POLE VAULT
+#
+# Y ese mismo indice reparte el motor de cada prueba en la tabla de 0x5548:
+# 0x9105, 0x5550, 0xA92E y 0x5550. La primera y la tercera van a sitios
+# propios, pero **el triple salto y el salto con pertiga comparten motor**:
+# las dos entran por 0x5550.
+D 0x5a7d 0x5a90 guion_game_over  19 B SIN cabecera: " PLAYER  GAME OVER "
+F 0x5a7d 19
+D 0x5a90 0x5a98 tabla_de_nombres_de_prueba  4 punteros; el indice es (0xE06A) y 3
+F 0x5a90 w
+D 0x5a98 0x5aa6 guion_triple_jump  14 B: TRIPLE JUMP en 0x386B
+F 0x5a98 14
+D 0x5aa6 0x5ab3 guion_pole_vault  13 B: POLE VAULT en 0x386B
+F 0x5aa6 13
+D 0x5ab3 0x5abd guion_cycling  10 B: CYCLING en 0x386B
+F 0x5ab3 10
+D 0x5abd 0x5ac7 guion_curling  10 B: CURLING en 0x386B
+F 0x5abd 10
+D 0x5ac7 0x5afa guion_de_marcadores  51 B, cinco destinos: HI SCORE, WORLD RECORD, RECORD, SCORE y TOTAL
+F 0x5ac7 11,12,10,9,9
+D 0x5afa 0x5b39 guion_you_did_it  63 B, tres destinos: YOU DID IT y CONGRATULATIONS, con su linea de borrado
+F 0x5afa 19,29,15
+D 0x5b39 0x5c0f rle_nombres_del_resumen  214 B -> 800 casillas de la tabla de nombres
+F 0x5b39 16
+D 0x5c0f 0x5c66 rle_patrones_del_resumen  87 B -> 152 de VRAM en 0x2400, o sea los 19 patrones desde el tile 0x80
+F 0x5c0f 16
+D 0x5c66 0x5ca0 rle_color_del_resumen  58 B -> las mismas 152 posiciones en 0x0400
+F 0x5c66 16
+
+# ======================================================================
+# LOS ATLETAS: figuras y patrones de sprite
+# ======================================================================
+# Un atleta no es un sprite: son de dos a siete sprites de 16x16 puestos uno
+# al lado de otro, y sus patrones NO viven en la VRAM esperando. Cada cuadro
+# se DESCOMPRIMEN otra vez encima de los mismos 2 KB de 0x1800, que es donde
+# el VDP los busca (R6 = 0x03).
+#
+# El motor es L_6992. Cada pieza son cinco bytes -dy, dx, puntero al patron
+# (word) y color-, y un 0x80 en el sitio del dy cierra la figura y apaga los
+# sprites que sobren. Todo esto esta ejecutado en tools/retales.py; los
+# tamanos salen de ahi, no de una cuenta a ojo.
+#
+# Cada tabla acaba EXACTAMENTE en su entrada mas baja. Las cinco:
+#
+#   0x6B00  13 entradas, 2 piezas   patrones 0x8722..0x881D
+#   0x6B6A  13 entradas, 4 piezas   patrones 0x8614..0x8721
+#   0x6BD9  14 entradas, 7 piezas   patrones 0x862F..0x8B00
+#   0x6D5C   6 entradas, 4 piezas   patrones 0x8B01..0x8CDC
+#   0x6E33  ...                     patrones 0x8D11..0x906A
+D 0x6b00 0x6b1a tabla_de_figuras_6b00  13 punteros; la mas baja es 0x6B1A, que es donde acaba la tabla
+F 0x6b00 w
+D 0x6b1a 0x6b6a figuras_6b1a  80 B: ocho figuras de dos piezas de cinco bytes
+F 0x6b1a 10
+D 0x6b6a 0x6b84 tabla_de_figuras_6b6a  13 punteros; acaba en 0x6B84
+F 0x6b6a w
+D 0x6b84 0x6bd9 figuras_6b84  85 B: siete figuras de hasta cuatro piezas, cada una cerrada con su 0x80
+F 0x6b84 11,16,20,16,11,11
+D 0x6bd9 0x6bf5 tabla_de_figuras_6bd9  14 punteros; acaba en 0x6BF5
+F 0x6bd9 w
+D 0x6bf5 0x6d5c figuras_6bf5  359 B: catorce figuras de hasta siete piezas
+F 0x6bf5 15
+D 0x6d5c 0x6d68 tabla_de_figuras_6d5c  6 punteros; acaba en 0x6D68
+F 0x6d5c w
+D 0x6d68 0x6de6 figuras_6d68  126 B: seis figuras de cuatro piezas, 21 bytes cada una
+F 0x6d68 21
+D 0x6de6 0x6dea estado_inicial_de_0xe131  4 B que 0x5FD0 copia a 0xE131 con un `ldir`
+F 0x6de6 4
+D 0x6dea 0x6e06 atributos_de_sprite_iniciales  28 B que 0x6476 copia a 0xE0C4: siete sprites, con los patrones 0, 4, 8, 0x0C, 0x10, 0x14 y 0x18
+F 0x6dea 4
+D 0x6e06 0x6e0a estado_inicial_de_0xe0e4  4 B que 0x6052 y 0x6387 copian a 0xE0E4
+F 0x6e06 4
+D 0x6e0a 0x6e0e estado_inicial_de_0xe0e4_bis  4 B, el otro juego, desde 0x6102
+F 0x6e0a 4
+D 0x6e0e 0x6e15 guion_foul_en_juego  7 B SIN cabecera: " FOUL ", con el destino ya en HL; lo pintan 0x7528 y 0x754B
+F 0x6e0e 7
+D 0x6e15 0x6e24 figura_6e15  15 B: tres piezas, desde 0x64E0
+F 0x6e15 5
+D 0x6e24 0x6e33 figura_6e24  15 B: tres piezas, desde 0x653D
+F 0x6e24 5
+D 0x6e33 0x6e43 tabla_de_figuras_6e33  8 punteros; acaba en 0x6E43
+F 0x6e33 w
+D 0x6e43 0x6f1c figuras_6e43  217 B: ocho figuras de hasta siete piezas, las mas grandes del cartucho
+F 0x6e43 15
+
+# Los 127 bloques de patron a los que apuntan TODAS las figuras de arriba
+# caen entre 0x8614 y 0x906A **sin dejar un solo byte suelto**: ejecutados uno
+# a uno con tools/retales.py, el fin de cada bloque es el principio del
+# siguiente. Los bytes en bruto no dicen donde acaba cada uno; lo dice su 0x00.
+D 0x8614 0x906b patrones_de_sprite  127 bloques comprimidos encadenados: los atletas de las cuatro pruebas, que se descomprimen cada cuadro sobre los 2 KB de 0x1800
+F 0x8614 16
+
+# ======================================================================
+# LAS MARCAS DE LAS PRUEBAS DE SALTO, EN BCD
+# ======================================================================
+# Los ocho primeros words son metros y centimetros en BCD, y el sexto, 17.89,
+# es el record del mundo de TRIPLE SALTO de la epoca: los 17,89 m de Joao
+# Carlos de Oliveira. Los diez siguientes son de PERTIGA, y acaban en 5.94.
+D 0x757d 0x758d marcas_del_triple_salto  8 words en BCD: 13.00, 14.00, 15.00, 16.00, 17.00, 17.89, 18.00 y 20.00 metros
+F 0x757d w
+D 0x758d 0x75a1 marcas_de_la_pertiga  10 words en BCD: de 5.65 a 5.94 metros
+F 0x758d w
+D 0x75a1 0x75ab guion_qualify  10 B: QUALIFY en 0x3824
+F 0x75a1 10
+
+# ======================================================================
+# LOS BLOQUES COMPRIMIDOS DE LAS PRUEBAS DE SALTO
+# ======================================================================
+# De 0x75AB a 0x8262 van QUINCE bloques comprimidos seguidos, sin un byte
+# suelto entre ellos: el fin de cada uno -su 0x00- es el principio del
+# siguiente. Todos ejecutados con tools/rle.py.
+#
+# Uno de ellos, el de 0x7818, no va a la VRAM sino a la RAM: lo lee L_74B1,
+# que es el MISMO formato con otra salida, y que ademas saca el destino de
+# los dos primeros bytes del bloque -aqui, 0xE320-.
+D 0x75ab 0x760a rle_patrones_de_la_pista  95 B -> 168 de VRAM; lo cargan 0x5426 (en 0x2200) y 0x73DF (en 0x2748)
+F 0x75ab 16
+D 0x760a 0x7631 rle_color_de_la_pista  39 B -> 184 de VRAM; el color de los mismos, en 0x0200 o en 0x0748
+F 0x760a 16
+D 0x7631 0x7658 rle_patrones_7631  39 B -> 40 de VRAM en 0x1200, o sea patrones de SPRITE
+F 0x7631 16
+D 0x7658 0x766c rle_patrones_7658  20 B -> 24 de VRAM en los tres tercios desde 0x2030
+F 0x7658 16
+D 0x766c 0x7671 rle_color_7658  5 B -> las mismas 24 posiciones en 0x0030
+F 0x766c 5
+D 0x7671 0x76b3 rle_7671  66 B -> 160 de VRAM; lo carga 0x748B al montar la pista del triple salto y de la pertiga, detras del liston y de las colchonetas
+F 0x7671 16
+D 0x76b3 0x76c7 rle_speed  20 B -> 30 casillas de la tabla de nombres: el rotulo SPEED del marcador
+F 0x76b3 16
+D 0x76c7 0x775f rle_patrones_76c7  152 B -> 176 de VRAM en DOS tercios desde 0x2220 (L_4407 con B=2)
+F 0x76c7 16
+D 0x775f 0x7818 rle_color_76c7  185 B -> 208 de VRAM en dos tercios desde 0x0200
+F 0x775f 16
+D 0x7818 0x785d rle_a_ram_e320  69 B -> 80 bytes de RAM desde 0xE320; el destino son sus dos primeros bytes y lo descomprime L_74B1, que escribe en memoria y no en la VRAM
+F 0x7818 16
+D 0x785d 0x78e5 rle_785d  136 B -> 192 de VRAM
+F 0x785d 16
+D 0x78e5 0x799e rle_color_78e5  185 B -> 208 de VRAM en dos tercios desde 0x0200; es la ALTERNATIVA a 0x775F, y elige el bit 1 de (0xE003)
+F 0x78e5 16
+D 0x799e 0x79cf rle_799e  49 B -> 582 de VRAM en cuatro tramos
+F 0x799e 16
+D 0x79cf 0x79fb rle_79cf  44 B -> 587 de VRAM en dos tramos; la alternativa a 0x799E, y elige L_5F0F
+F 0x79cf 16
+D 0x79fb 0x8262 rle_pantalla_del_salto  2151 B -> 4048 de VRAM en SEIS tramos: el bloque mas gordo del cartucho
+F 0x79fb 16
+D 0x84ef 0x8614 rle_84ef  293 B -> 768 de VRAM
+F 0x84ef 16
+D 0x9d54 0x9d5f rle_9d54  11 B -> 48 de VRAM en los tres tercios desde 0x0500
+F 0x9d54 11
+D 0x9d5f 0x9f16 rle_patrones_9d5f  439 B -> 640 de VRAM en los tres tercios desde 0x2268
+F 0x9d5f 16
+D 0x9f16 0x9fa7 rle_color_9d5f  145 B -> las mismas 640 posiciones en 0x0268
+F 0x9f16 16
+D 0x9fa7 0x9fb7 rle_9fa7  16 B -> 16 de VRAM. Es el mismo flujo que se usa DOS veces: 0x5435 entra por 0x9FA7, donde los dos primeros bytes traen el destino, y 0x58C6 entra por 0x9FA9 con el destino en HL (0x22C0) y en los tres tercios
+F 0x9fa7 16
+D 0x9fb7 0xa232 rle_9fb7  635 B -> 928 de VRAM de una tacada
+F 0x9fb7 16
+
+# ======================================================================
+# LOS QUINCE GUIONES DEL SEGUNDO INTERPRETE
+# ======================================================================
+# L_676E es el OTRO interprete de rotulos, y no es el mismo que L_4415: saca
+# los bytes por `out (c),a` en vez de por WRTVRM, y sobre todo su 0xFE no trae
+# una direccion nueva sino UN SOLO BYTE que se SUMA a la posicion. O sea que
+# salta en relativo, que sale mas barato cuando el dibujo va por filas.
+D 0x7132 0x7150 tabla_de_guiones_relativos  15 punteros; acaba en 0x7150, que es su entrada mas baja
+F 0x7132 w
+D 0x7150 0x732e guiones_relativos  478 B: los quince guiones que lee L_676E, con 0xFE para saltar en relativo y 0xFF para cerrar
+F 0x7150 16
+
+# ======================================================================
+# EL MARCADOR Y EL RECORD
+# ======================================================================
+D 0x57f1 0x5800 guion_world_record  15 B: WORLD RECORD en 0x3823; lo pinta L_4430, o sea PARPADEANDO
+F 0x57f1 15
+D 0x5519 0x5540 rle_5519  39 B -> 128 de VRAM; lo cargan 0x91FC y 0xA8B4
+F 0x5519 16
+
+# ======================================================================
+# LA PRUEBA DE 0x9105: sus rotulos y sus sprites
+# ======================================================================
+D 0x906b 0x9105 rle_906b  154 B -> 192 de VRAM; entra por las DOS puertas: 0x571D lee la direccion del propio bloque y 0x9205 se la da en HL (0x1C00), saltandose los dos primeros bytes
+F 0x906b 16
+D 0x95ee 0x95f1 atributos_de_sprite_95ee  3 B que 0x95C6 copia a 0x3B7C, o sea el ULTIMO sprite de la tabla
+F 0x95ee 3
+D 0x9611 0x9618 nombres_9611  7 B que 0x9604 copia a 0x3A00
+F 0x9611 7
+D 0x965d 0x9665 sprites_de_la_flecha  8 B a 0x3B50: la flecha que senala a tu ciclista, una por ventana -patron 0x24, azul en la de arriba y roja en la de abajo-, que 0x9247 enciende y apaga cada dieciseis fotogramas
+F 0x965d 4
+D 0x9665 0x966d sprites_de_la_pistola  8 B al mismo sitio: la PISTOLA de salida, patron 0x1C en negro, en (84,14) y (164,14); sustituye a la flecha cuando la cuenta atras se agota
+F 0x9665 4
+D 0x966d 0x9675 sprites_del_fogonazo  8 B a 0x3B58: el humo del disparo con el GO dentro, patron 0x20 en blanco, en (80,32) y (160,32) -o sea justo a la derecha de la pistola-. Los tres bloques cotejados contra la VRAM del emulador: la flecha sale a los 2,4 s de montarse la prueba, la pistola 2,9 s despues y el fogonazo otros 2,4 s mas tarde
+F 0x966d 4
+D 0x968c 0x9698 guion_world_rec  12 B: WORLD REC en 0x3802; lo pinta L_4430, parpadeando
+F 0x968c 12
+D 0x9698 0x969e nombres_flying  6 B que 0x9184 copia a 0x3A90: la palabra FLYING
+F 0x9698 6
+D 0x969e 0x96be guion_speed  32 B, cuatro destinos: el rotulo SPEED del marcador y sus tres tramos
+F 0x969e 9,9,7,7
+D 0x96be 0x96c8 guion_96be  10 B, dos destinos de dos tiles cada uno
+F 0x96be 5,5
+
+# ======================================================================
+# LA PRUEBA DE 0xA92E: el curling
+# ======================================================================
+# Se le reconoce por sus rotulos: TEMP, POINT e ICE TEMP, que no aparecen en
+# ninguna otra parte del cartucho.
+D 0xa919 0xa92e rle_a919  21 B -> 576 de VRAM de una tacada
+F 0xa919 16
+D 0xac84 0xac96 guion_temp  18 B, dos destinos: TEMP en 0x3A2D y dos tiles en 0x3A4D
+F 0xac84 8,10
+D 0xac96 0xaca0 rle_ac96  10 B -> 12 de VRAM en dos tramos
+F 0xac96 10
+D 0xaca0 0xacb3 guion_point_e_ice_temp  19 B, dos destinos: POINT en 0x3830 e ICE TEMP en 0x3850
+F 0xaca0 9,10
+
+# ======================================================================
+# LO QUE VA COMPRIMIDO EN LA ULTIMA PAGINA
+# ======================================================================
+# De 0xB754 a 0xBFDE van OCHO bloques comprimidos seguidos, y detras solo
+# quedan 17 bytes y la marca de Konami. Todos ejecutados con tools/rle.py.
+D 0xb754 0xb772 rle_b754  30 B -> 128 de VRAM en SEIS tramos
+F 0xb754 16
+D 0xb772 0xb907 rle_patrones_b772  405 B -> 584 de VRAM en 0x2880
+F 0xb772 16
+D 0xb907 0xb9c4 rle_patrones_b907  189 B -> 280 de VRAM en 0x3200, o sea patrones de SPRITE
+F 0xb907 16
+D 0xb9c4 0xbac2 rle_b9c4  254 B -> 360 de VRAM
+F 0xb9c4 16
+D 0xbac2 0xbb0e rle_patrones_bac2  76 B -> 152 de VRAM en los tres tercios desde 0x2730
+F 0xbac2 16
+D 0xbb0e 0xbb4f rle_bb0e  65 B -> 360 de VRAM; es del monton de la pista de curling, y sale de la cadena de bloques que 0xB6CD descomprime uno detras de otro
+F 0xbb0e 16
+D 0xbb4f 0xbb58 rle_color_bac2  9 B -> las mismas 152 posiciones en 0x0730
+F 0xbb4f 9
+D 0xbb58 0xbfdf rle_bb58  1159 B -> 1696 de VRAM; el segundo bloque mas gordo
+F 0xbb58 16
+
+# ======================================================================
+# LO QUE HAY ENTRE LAS FIGURAS Y LOS GUIONES RELATIVOS
+# ======================================================================
+D 0x6f1c 0x6f28 tabla_6f1c  11 valores y el 0xFF que cierra: 75, 60, 50, 30, 30, 30, 35, 40, 45, 45 y 20; la indexa 0x6653 con `call L_4046 / ld a,(hl)`
+F 0x6f1c 12
+D 0x6f28 0x6f40 tabla_6f28  23 valores que solo suben, de 0 a 7, y el 0xFE que cierra; 0x6726 se la guarda entera en (0xE143)
+F 0x6f28 24
+D 0x6f40 0x6f4a tabla_6f40  10 valores que solo bajan, de 0x44 a 0x36; la indexa 0x6918
+F 0x6f40 10
+D 0x6f4a 0x6f62 atributos_de_sprite_6f4a  24 B que 0x66CE y 0x6A4E copian a 0xE0AC: seis sprites iguales, todos con Y = 0xC3, o sea APAGADOS
+F 0x6f4a 4
+D 0x6f62 0x6f7a atributos_de_sprite_6f62  24 B, la alternativa, desde 0x6A53: los mismos seis sprites pero escalonados en Y, de 0x94 a 0x44
+F 0x6f62 4
+D 0x6f7a 0x6f89 guion_6f7a  15 B: doce tiles 0x67 seguidos en 0x3A44; lo carga 0x64BB
+F 0x6f7a 15
+D 0x6f89 0x6f98 guion_6f89  15 B: los mismos doce sitios con el tile 0x68; desde 0x64CB
+F 0x6f89 15
+D 0x6f98 0x6fa7 guion_6f98  15 B: y con el tile 0x41, que es la letra A de la fuente; desde 0x650D
+F 0x6f98 15
+D 0x6fa7 0x6fc5 tabla_de_guiones_relativos_6fa7  15 punteros; acaba en 0x6FC5, que es su entrada mas baja
+F 0x6fa7 w
+D 0x6fc5 0x7132 guiones_relativos_6fc5  365 B: los quince guiones de L_676E, con 0xFE para saltar en relativo y 0xFF para cerrar. Dibujan una escalera de tiles 0x0E que se va estirando: es la barra que crece
+F 0x6fc5 16
+
+# ======================================================================
+# LA TABLA DE NOVENTA
+# ======================================================================
+# Que son noventa entradas y no otra cosa lo dicen SUS DOS LECTORES, que la
+# recorren en los dos sentidos:
+#
+#     0x732F  ld hl,07346h / call L_4046 / ld a,(hl)      indice A
+#     0x7338  sub 05ah / neg / ld hl,07346h / ...         indice 90 - A
+#
+# El 0x5A del segundo es 90, y 0x7346 + 90 = 0x73A0, que es justo donde
+# vuelve a empezar el codigo.
+D 0x7346 0x73a0 tabla_de_noventa  90 valores, leidos por 0x732F con el indice y por 0x733D con 90 menos el indice
+F 0x7346 15
+
+# ======================================================================
+# LOS RECTANGULOS CON RECORTE, Y LOS DIGITOS GRANDES
+# ======================================================================
+# L_AF7C dibuja un rectangulo de la tabla de nombres teniendo en cuenta el
+# DESPLAZAMIENTO de la pantalla, que saca de (0xE20D) dividido por ocho. Su
+# cabecera son cinco bytes:
+#
+#     [columna x]  [ancho]  [alto]  [destino de VRAM, word]
+#
+# y lo curioso es que cada figura trae DOS juegos de datos del mismo tamano:
+# el que va pegado detras de la cabecera y otro aparte. Cual se usa lo decide
+# el acarreo de `x - desplazamiento`, o sea si la figura esta o no recortada
+# por la izquierda. El `ex de,hl` de 0xAF9D es el que los intercambia.
+#
+# Los seis pares que hay, con quien los carga, y su encaje al byte:
+#
+#     0x8262 (5x12)  datos en 0x8267, los otros en 0x82AC   desde 0x5DCC
+#     0x82A3 (4x1)   datos en 0x82A8, los otros en 0x82E8   desde 0x5D6F
+#     0x842C (3x2)   datos en 0x8431, los otros en 0x8437   desde 0x5ED1
+#     0x843D (3x2)   datos en 0x8442, los otros en 0x8448   desde 0x5EAE
+#     0x844E (39x2)  datos en 0x8453, los otros en 0x84A1   desde 0x5EB7
+#     0xB07F (20x12) datos en 0xB084, los otros en 0xB174   desde 0xAEA1
+#     0xB264 (2x12)  datos en 0xB269, los otros en 0xB281   desde 0xAEAA
+#     0xB299 (3x14)  datos en 0xB29E, los otros en 0xB2C8   desde 0xAE98
+#
+# El de 0x82EC es distinto y es el mas bonito: son los DIGITOS GRANDES de la
+# marca. Su cabecera dice 5x3, o sea quince bytes por digito, y el codigo de
+# 0x5DB2 multiplica el digito por quince (`add a,a` cuatro veces menos una)
+# antes de sumarlo a los dos punteros. Diez digitos por diez son 150 bytes en
+# cada juego: 0x82F1..0x8387 y 0x8387..0x841D.
+D 0x8262 0x8267 cabecera_rectangulo_8262  x=62, 5 de ancho por 12 de alto, a la casilla 0x3960
+F 0x8262 5
+D 0x8267 0x82a3 rectangulo_8262  60 casillas, cinco por fila
+F 0x8267 5
+D 0x82a3 0x82a8 cabecera_rectangulo_82a3  x=59, 4 de ancho por 1 de alto, a la casilla 0x3AA0; la carga 0x5D72
+F 0x82a3 5
+D 0x82a8 0x82ac rectangulo_82a3  4 casillas: la version que se usa cuando la figura NO esta recortada por la izquierda
+F 0x82a8 4
+D 0x82ac 0x82e8 rectangulo_8262_recortado  las otras 60 casillas del de 0x8262, para cuando esta recortado por la izquierda
+F 0x82ac 5
+D 0x82e8 0x82ec rectangulo_82a3_recortado  las otras 4 casillas, las de cuando la figura si esta recortada; el `ex de,hl` de 0xAF9D elige entre las dos
+F 0x82e8 4
+D 0x82ec 0x82f1 cabecera_de_los_digitos  x, 5 de ancho por 3 de alto: quince casillas por digito
+F 0x82ec 5
+D 0x82f1 0x8387 digitos_grandes  150 B: los diez digitos de la marca, de quince casillas cada uno
+F 0x82f1 15
+D 0x8387 0x841d digitos_grandes_recortados  los mismos diez digitos, para cuando el marcador esta recortado por la izquierda
+F 0x8387 15
+D 0x841d 0x842c bloque_841d  15 B -una casilla mas de 5x3-; lo carga 0x6743
+F 0x841d 15
+D 0x842c 0x8431 cabecera_rectangulo_842c  x, 3 de ancho por 2 de alto, a la casilla 0x3AA0; la carga 0x5ECE, o sea el ultimo rectangulo que pinta el suelo
+F 0x842c 5
+D 0x8431 0x8437 rectangulo_842c  6 casillas: la version sin recortar
+F 0x8431 3
+D 0x8437 0x843d rectangulo_842c_recortado  las otras 6, las de cuando la figura entra cortada por la izquierda
+F 0x8437 3
+D 0x843d 0x8442 cabecera_rectangulo_843d  x, 3 de ancho por 2 de alto, a la casilla 0x3A80; la carga 0x5EAE
+F 0x843d 5
+D 0x8442 0x8448 rectangulo_843d  6 casillas: la version sin recortar
+F 0x8442 3
+D 0x8448 0x844e rectangulo_843d_recortado  las otras 6, las de cuando la figura entra cortada
+F 0x8448 3
+D 0x844e 0x8453 cabecera_rectangulo_844e  x, 39 de ancho por 2 de alto: la tira mas larga del cartucho
+F 0x844e 5
+D 0x8453 0x84a1 rectangulo_844e  78 casillas, 39 por fila: es la tira de suelo mas larga del cartucho
+F 0x8453 13
+D 0x84a1 0x84ef rectangulo_844e_recortado  las otras 78, las de cuando la tira entra cortada por la izquierda
+F 0x84a1 13
+D 0xafef 0xb05f rle_a_ram_e400_curling  112 B -> 240 en RAM desde 0xE400; lo descomprime L_74B5 desde 0xA8A8
+F 0xafef 16
+D 0xb05f 0xb067 tabla_b05f  8 B; la carga 0xAEDA
+F 0xb05f 8
+D 0xb067 0xb06f tabla_b067  8 B; la carga 0xAED6
+F 0xb067 8
+D 0xb06f 0xb077 tabla_b06f  8 B; la carga 0xAEE7
+F 0xb06f 8
+D 0xb077 0xb07f tabla_b077  8 B; la carga 0xAEE3
+F 0xb077 8
+D 0xb07f 0xb084 cabecera_rectangulo_b07f  x=94, 20 de ancho por 12 de alto, a la casilla 0x3900
+F 0xb07f 5
+D 0xb084 0xb174 rectangulo_b07f  240 casillas, veinte por fila
+F 0xb084 20
+D 0xb174 0xb264 rectangulo_b07f_recortado  las otras 240 casillas, las de cuando el circulo de la casa entra cortado por la izquierda
+F 0xb174 20
+D 0xb264 0xb269 cabecera_rectangulo_b264  x=31, 2 de ancho por 12 de alto, a la casilla 0x3900; la carga 0xAEAA
+F 0xb264 5
+D 0xb269 0xb281 rectangulo_b264  24 casillas, dos por fila: el borde derecho de la casa
+F 0xb269 2
+D 0xb281 0xb299 rectangulo_b264_recortado  las otras 24, las de cuando el borde entra cortado
+F 0xb281 2
+D 0xb299 0xb29e cabecera_rectangulo_b299  x, 3 de ancho por 14 de alto, a la casilla 0x38E0; la carga 0xAE98, la primera de las tres del hielo
+F 0xb299 5
+D 0xb29e 0xb2c8 rectangulo_b299  42 casillas, tres por fila: la raya de la izquierda de la pista
+F 0xb29e 3
+D 0xb2c8 0xb2f2 rectangulo_b299_recortado  las otras 42, las de cuando la raya entra cortada
+F 0xb2c8 3
+D 0xb4aa 0xb5a2 tabla_b4aa  248 B; la indexa 0xB471 con `call L_4046`
+F 0xb4aa 16
+D 0xb5a2 0xb5a8 tabla_b5a2  6 B; la indexa 0xB446
+F 0xb5a2 6
+
+# ======================================================================
+# LAS TABLAS PEQUENAS, CADA UNA CON QUIEN LA LEE
+# ======================================================================
+# Ninguna esta bautizada por su aspecto: de cada una se dice la instruccion
+# que la carga y con que indice, que es lo unico que las identifica.
+D 0x4c26 0x4c2e parametros_de_sonido  8 B: dos grupos de cuatro que cargan 0x4BDF (`ld de,04c29h`) y 0x4BEA (`ld de,04c2dh`)
+F 0x4c26 4
+D 0x545b 0x546b tabla_de_words_545b  8 words descendentes, de 0x0300 a 0x0130; los recorre L_5443 desde 0x54F3
+F 0x545b w
+D 0x5511 0x5519 tabla_de_bytes_5511  8 B: 04 0B 07 04 06 0B 0F 06
+F 0x5511 8
+D 0x5876 0x5880 tabla_5876  10 B; la carga 0x5821 en (0xE00C) cuando los dos bits de abajo de (0xE06A) valen 3
+F 0x5876 10
+D 0x5880 0x5896 tabla_5880  22 B; la alternativa a la de arriba, desde 0x581B
+F 0x5880 11
+D 0x5d23 0x5d29 tabla_5d23  6 B; la carga 0x5CC4
+F 0x5d23 6
+D 0x5d29 0x5d2f tabla_5d29  6 B; la carga 0x5CF3
+F 0x5d29 6
+D 0x5f7b 0x5f8b curva_5f7b  16 B, creciente y con la pendiente cada vez mayor (02 14 20 28 32 3A 44 4C 50 54 60 78 8C A4 BA D0); la indexa 0x5F27 con el NIBBLE ALTO del byte alto de (0xE120), y el valor sale multiplicado por cuatro
+F 0x5f7b 16
+D 0x9618 0x9626 tabla_9618  14 B en dos filas de siete: las dos filas de abajo del marco de la ventana del ciclismo, que 0x95FF copia a la VRAM detras de la de 0x9611
+F 0x9618 14
+D 0x9675 0x9679 guion_1up_en_juego  4 B SIN cabecera: 1UP
+F 0x9675 4
+D 0x9679 0x967d guion_2up_en_juego  4 B SIN cabecera: 2UP
+F 0x9679 4
+D 0x967d 0x9686 guion_cpu  9 B SIN cabecera: CPU, y detras el " SET" que lo comparte
+F 0x967d 9
+D 0x9686 0x968c guion_ready  6 B SIN cabecera: READY; lo carga 0x9272
+F 0x9686 6
+D 0x9766 0x9769 tabla_9766  3 B; la carga 0x9751
+F 0x9766 3
+D 0x97ba 0x97c2 tabla_de_datos_por_prueba  4 punteros a RAM -0xE600, 0xE639, 0xE672 y 0xE6AB-, o sea cuatro bloques de 57 bytes seguidos, uno por prueba; el indice lo saca 0x97AA de (0xE06A) con `rra / and 006h`
+F 0x97ba w
+D 0x97d1 0x9819 rle_a_ram_e140  72 B -> 288 en RAM; lo descomprime L_74B5 dos veces, a 0xE140 y a 0xE260
+F 0x97d1 16
+D 0x9845 0x98e1 rle_a_ram_e600  156 B -> 228 en RAM desde 0xE600: los cuatro bloques por prueba a los que apunta la tabla de 0x97BA
+F 0x9845 16
+D 0x9ad7 0x9ae7 curva_9ad7  16 B, creciente y acabada en 0xFF (04 28 40 50 64 74 88 98 A0 A8 B4 C0 D8 E8 F0 FF); la indexa 0x9A39 igual que la de 0x5F7B, con un nibble alto
+F 0x9ad7 16
+D 0x9b86 0x9c9d rle_a_ram_e400  279 B -> 504 en RAM desde 0xE400
+F 0x9b86 16
+D 0x9d14 0x9d34 patron_9d14  32 B, o sea un sprite de 16x16 entero; lo carga 0x9CA0 con `ld ix,09d14h`
+F 0x9d14 8
+D 0x9d34 0x9d54 patron_9d34  32 B, el otro sprite de 16x16; desde 0x9CA7
+F 0x9d34 8
+D 0xa2e8 0xa2f2 tabla_a2e8  10 B; la carga 0xA28F
+F 0xa2e8 10
+D 0xa2f2 0xa2fc tabla_a2f2  10 B; la carga 0xA294
+F 0xa2f2 10
+D 0xa2fc 0xa311 tabla_a2fc  21 B; la carga 0xA281
+F 0xa2fc 21
+D 0xa311 0xa31a tablas_a311  9 B en cuatro trozos que cargan 0xA2A3, 0xA2A8, 0xA2B6 y 0xA2C1
+F 0xa311 3,3,2,1
+D 0xa751 0xa759 tabla_a751  8 B; la carga 0xA70F
+F 0xa751 8
+D 0xa759 0xa75d tabla_a759  4 B; la carga 0xA716
+F 0xa759 4
+D 0xa75d 0xa761 tabla_a75d  4 B; la carga 0xA721
+F 0xa75d 4
+D 0xa901 0xa911 marcas_del_curling  8 words en BCD, de 0.50 a 1.00; los recorre L_5443 desde 0xA8F4, el mismo que los de 0x545B
+F 0xa901 w
+D 0xa911 0xa919 estado_inicial_de_0xe1a8  8 B que 0xA885 copia a 0xE1A8 con un `ldir`
+F 0xa911 8
+# ESTOS DIEZ BYTES NO SON DATOS: SON UNA RUTINA QUE NO LLAMA NADIE.
+#
+#     AE3A  AF    xor a
+#     AE3B  29    add hl,hl
+#     AE3C  8F    adc a,a
+#     AE3D  29    add hl,hl
+#     AE3E  8F    adc a,a
+#     AE3F  29    add hl,hl
+#     AE40  8F    adc a,a
+#     AE41  6C    ld l,h
+#     AE42  67    ld h,a
+#     AE43  C9    ret
+#
+# Multiplica HL por ocho llevandose a A los tres bits que se salen por arriba,
+# y devuelve los dieciseis bits ALTOS del resultado de veinticuatro. O sea
+# HL / 32, sin perder por arriba.
+#
+# Y eso es exactamente lo que el reparto de la direccion de la piedra hace A
+# MANO doscientos bytes mas arriba, en 0xAD04, con cinco parejas de `srl b /
+# rra` desplegadas en linea. Comprobado sobre los 65.536 valores posibles: las
+# dos dan lo mismo, cero diferencias.
+#
+# No la llama NADIE: ni un `call`, ni un `jp`, ni una tabla de punteros, y los
+# bytes `3A AE` no aparecen ni una vez en los 32 KB. Es la version compacta que
+# alguien escribio primero, puso en linea donde hacia falta -sale mas rapido,
+# sin CALL ni RET- y se olvido de borrar. Diez bytes de cadaver.
+D 0xae3a 0xae44 rutina_muerta_de_dividir_por_32  10 bytes de codigo Z80 al que no salta nadie: HL/32, lo mismo que el desplegado de 0xAD04
+F 0xae3a 10
+D 0xae4c 0xae6d curva_descendente_ae4c  33 B, de 0xFF a 0xB5, con la pendiente cada vez mayor
+F 0xae4c 11
+D 0xae6d 0xae8e curva_ascendente_ae6d  33 B, de 0x02 a 0xB5, con la pendiente cada vez menor; es la companera de la de arriba, y las dos juntas son un cuarto de vuelta
+F 0xae6d 11
+D 0xb36e 0xb376 tabla_b36e  8 B: 01 02 01 00 04 05 04 03, o sea dos grupos simetricos de cuatro
+F 0xb36e 8
+D 0xb666 0xb684 tabla_triangular_b666  30 B en seis filas de cinco, cada una mayor que la anterior y en BCD: 00 00 01 11 11 / 00 01 11 12 22 / 00 11 12 23 33 / 01 11 22 33 34 / 01 12 23 34 45 / 01 12 33 44 56
+F 0xb666 5
+D 0xb684 0xb68c tabla_b684  8 B en BCD: 00 05 10 15 20 25 30 40
+F 0xb684 8
+
+# ======================================================================
+# EL RELLENO DEL FINAL
+# ======================================================================
+D 0xbfdf 0xbff0 relleno  17 bytes 0xFF, entre el ultimo bloque comprimido y la marca de Konami
+F 0xbfdf 17
+
+# ======================================================================
+# LA MARCA OCULTA DE KONAMI
+# ======================================================================
+# El hallazgo es de Manuel Pazos (@ManuelPazosMSX), 2021: Konami escondio en
+# muchos de sus cartuchos el titulo en katakana y el numero de catalogo.
+# Aqui cierra en el ULTIMO byte de la ROM, 0xBFFF, y son dieciseis bytes:
+# trece de titulo en orden inverso, su longitud (0x0D), el 0x33 del RC-733 y
+# el 0xAA que cierra.
+# Este es el primero de la serie que mete un DIGITO ASCII dentro del titulo:
+# el 0x33 de la cabeza es un '3' pelado, el numero de la secuela.
+D 0xbff0 0xc000 marca_oculta_de_konami  ハイパースポーツ 3 al reves, su longitud 13, el 0x33 de RC-733 y el 0xAA que cierra; no lo lee nadie
+F 0xbff0 13,3
+
+
+# ======================================================================
+# COMENTARIOS DE LINEA
+# ======================================================================
+B 0x4010 La entrada de 0x4010, que en la cabecera del cartucho NO esta declarada como nada: STATEMENT, DEVICE y TEXT valen cero. Lo que hace es escribir 0xC9E1 -que es `pop hl / ret`- en 0x412F, y 0x412F ES ROM: la escritura no llega a ninguna parte. Ahi hubo una automodificacion de cuando el codigo vivia en RAM, y quedo el cadaver.
+C 0x4010 0xC9E1 son `pop hl` y `ret`, en ese orden
+C 0x4013 y 0x412F es ROM: esto no cambia nada, el `djnz` de alli sigue en su sitio
+C 0x4016 lo unico que de verdad hace esta entrada
+L 0x4019 manejador_de_interrupcion el gancho que INIT deja en H.KEYI
+B 0x4019 EL GANCHO DE H.KEYI (0xFD9B). De aqui cuelga el juego entero: un fotograma por vez. Lleva cerrojo de reentrada en (0xE005), porque un fotograma que se pase de largo puede pillar al anterior sin terminar, y al salir vuelve a mirar el estado del VDP por si mientras tanto ha entrado otra interrupcion.
+C 0x4019 RDVDP: leer el registro de estado es lo que desarma la interrupcion del VDP
+C 0x401c la musica se atiende con las interrupciones cerradas
+C 0x401d el reproductor, que suena una vez por fotograma pase lo que pase
+C 0x4020 el cerrojo de reentrada
+C 0x4023 si ya hay un fotograma dentro, no se empieza otro
+C 0x4027 echar el cerrojo
+C 0x4028 y de aqui en adelante ya se puede interrumpir: el fotograma es lo largo
+C 0x4029 lee los dos mandos y los dos teclados
+C 0x402c el latido: sube el contador y reparte por escena
+C 0x402f soltar el cerrojo
+C 0x4033 y volver a mirar el estado del VDP
+C 0x4036 el bit 7 dice si ha entrado otra interrupcion mientras
+C 0x4038 y si ha entrado, otra pasada de musica antes de salir: asi no se pierde un tiempo
+L 0x403d escribe_registro_del_vdp WRTVDP con el mismo cadaver de automodificacion
+C 0x403d el segundo cadaver: 0x413B tambien es ROM
+C 0x4043 WRTVDP escribe B en el registro que diga C, y los dos vienen del que llama
+L 0x4046 suma_a_hl HL += A
+B 0x4046 HL += A, con el acarreo a H. Es la que indexa casi todas las tablas.
+L 0x404b suma_a_de DE += A
+B 0x404b La misma, con DE.
+L 0x4050 despacha_por_indice el despachador de la familia Konami
+B 0x4050 EL DESPACHADOR. Se llama con el indice en A y la tabla de punteros PEGADA DETRAS del `call`: el `pop hl` no recupera una direccion de retorno, recupera la tabla. Ninguna de estas tablas se puede seguir con un trazado estatico, y por eso van declaradas a mano en el .entries.
+C 0x4050 la direccion de retorno ES la tabla
+C 0x4051 dos bytes por entrada
+C 0x4052 hl = tabla + indice*2
+C 0x4055 la entrada, que es la direccion a la que hay que ir
+C 0x4059 y se va sin volver: quien llamo ya no vuelve aqui
+L 0x405a init_del_cartucho el INIT que declara la cabecera
+B 0x405a EL INIT DE LA CABECERA (0x405A). Engancha la mitad de arriba del cartucho en la pagina 2, monta el gancho de la interrupcion, borra los 2 KB de variables, prepara la pantalla y se queda dando vueltas para siempre en el bucle de 0x40B0: de aqui en adelante el juego solo avanza dentro de la interrupcion.
+C 0x405a el BIOS entra aqui con las interrupciones abiertas
+C 0x405b modo 1: el vector va al 0x0038 de la BIOS, que reparte por H.KEYI
+C 0x405d la pila, en lo alto de los 2 KB de RAM que el cartucho usa
+C 0x4060 RSLREG: los ocho bits son la ranura primaria de las cuatro paginas, dos a dos
+C 0x4063 dos rotaciones dejan abajo los de la pagina 1, que es donde esta este cartucho
+C 0x4065 y esos dos bits son la ranura
+C 0x406a 0xFCC1 es EXPTBL: su bit 7 dice si la ranura esta expandida
+C 0x406e con el bit 7 pegado, A ya tiene el formato que ENASLT espera
+C 0x4070 cuatro sumas: de EXPTBL a SLTTBL, que esta 4 bytes mas arriba
+C 0x4074 la subranura de esa ranura
+C 0x4075 y de ella solo cuentan los dos bits de la pagina 1
+C 0x4078 H = 0x80, o sea la pagina 2: la mitad de arriba de la ROM
+C 0x407a ENASLT, y DEFINITIVAMENTE: el cartucho entero queda visible de 0x4000 a 0xBFFF
+C 0x407d 0xFD9A es el `jp` del gancho de la interrupcion
+C 0x4082 y 0xFD9B su destino
+C 0x4088 borra de un tiron los 2 KB de variables, de 0xE000 a 0xE7FF
+C 0x4095 y copia encima los doce valores de 0x40CF, que son los unicos que no arrancan a cero
+C 0x40a0 el cerrojo echado mientras se prepara la pantalla
+C 0x40a5 borra la VRAM y pone los ocho registros del VDP
+C 0x40a9 soltar el cerrojo
+C 0x40ac desarma la interrupcion que haya quedado pendiente
+C 0x40af y ya
+L 0x40b0 bucle_ocioso lo unico que corre fuera de la interrupcion
+B 0x40b0 EL BUCLE OCIOSO. Lo unico del cartucho que corre FUERA de la interrupcion, y solo trabaja mientras la prueba en curso es la 0 -el ciclismo-: convierte a decimal el byte de cada jugador y guarda las cuatro cifras. Son dieciseis vueltas de `adc a,a / daa` por jugador, y hacerlo aqui es lo unico que las saca del fotograma.
+C 0x40b0 los dos bits de abajo de 0xE06A son la prueba en curso
+C 0x40b5 y si no es la 0, aqui no hay nada que hacer
+C 0x40b7 el byte del jugador 1
+C 0x40bb convertido a decimal: cuatro cifras en BCD
+C 0x40be y el resultado se deja donde el fotograma lo va a encontrar hecho
+C 0x40c2 lo mismo con el jugador 2
+C 0x40cd y a esperar otra vez
+L 0x40db apaga_la_pantalla baja el bit 6 del registro 1
+B 0x40db Baja el bit 6 de la COPIA en ROM del registro 1 del VDP -el byte 0x4493 de la tabla de 0x4492-, o sea deja la pantalla apagada para la proxima vez que se escriban los registros, y salta a L_4ADD con lo que traiga A.
+C 0x40db 0x4493 es el registro 1 dentro de la tabla de los ocho
+C 0x40de el bit 6 es el que enciende la pantalla
+L 0x40e3 latido_del_fotograma sube el contador y reparte por escena
+B 0x40e3 EL LATIDO. Sube el contador de fotogramas y reparte por escena, con un detalle: antes de repartir APILA una rutina -0x4288 o 0x4388 segun el bit 6 de (0xE002)-, de modo que el `ret` de la escena caiga en ella. Ese `push` es la unica forma de llegar a las dos, y las escenas 3, 4 y de la 6 en adelante se lo saltan.
+C 0x40e3 0xE003 cuenta fotogramas, y de el salen todos los ritmos lentos del cartucho
+C 0x40e7 el bit 6 de 0xE002 dice si hay partida en curso
+C 0x40ec con partida, la que parpadea el rotulo de la prueba
+C 0x40f1 y sin ella, la que lee los mandos del menu
+C 0x40f4 de un tiron: C = la escena (0xE000) y B = el paso dentro de ella (0xE001)
+C 0x40f9 de la escena 6 en adelante no se apila nada
+C 0x40fd ni en la 3
+C 0x4101 ni en la 4
+C 0x4105 apilarla: el `ret` de la escena vendra a parar aqui
+C 0x4106 y repartir por la tabla que va pegada detras
+B 0x411b LAS NUEVE ESCENAS. Todas entran con B = el paso dentro de la escena, que es (0xE001), y lo primero que hacen es una cadena de `djnz`: con B=1 se cae en el primer trozo, con B=2 en el segundo, y asi. Subir de paso es L_4180 y pasar a la escena siguiente es L_41C2. (0xE004) es la cuenta atras, en fotogramas.
+C 0x411b con B=1 se sigue aqui; con mas, se salta
+C 0x411d el bit 0 del contador de fotogramas
+C 0x4121 o sea que esto va a la mitad de velocidad, un fotograma si y otro no
+C 0x4125 mientras no termine, no se avanza
+C 0x4126 el bloque comprimido de 0x4514, ya a la VRAM
+C 0x412c sin espera
+C 0x412f el paso 2
+C 0x4131 la cuenta atras
+C 0x4135 y hasta que no llega a cero, nada
+C 0x413d los ocho registros del VDP
+C 0x4140 limpia la pantalla entera
+C 0x414b la escena 1 es solo esperar
+C 0x414f mientras corre la cuenta atras, L_4889
+C 0x4152 y al agotarse, a la escena siguiente
+C 0x4155 la escena 2, paso 1
+C 0x415d 0xE069 en alto significa esperar a que algo termine
+C 0x4162 la prueba en curso, una mas, y da la vuelta a las cuatro
+C 0x416a de vuelta al paso 0
+C 0x416e 32 fotogramas de espera
+C 0x4175 el paso 2 de la escena 2
+C 0x417b 32 fotogramas
+L 0x417d espera_y_sube_el_paso deja la cuenta atras en A y sube el paso
+C 0x417d la cuenta atras que traiga A
+L 0x4180 sube_el_paso el siguiente `djnz` de la misma escena
+C 0x4180 la escena sigue siendo la misma
+C 0x4183 pero el `djnz` de la cabecera caera un trozo mas alla
+C 0x4185 la escena 3, la de los rotulos
+C 0x418a la cuenta atras
+C 0x418b y al agotarse, al paso siguiente
+C 0x4190 el bit 5 de 0xE002 dice si juegan dos
+C 0x4192 con uno, el guion de 0x4542
+C 0x4197 y con dos, el de 0x454C
+C 0x419a el bit 2 de la cuenta atras: se enciende y se apaga cada cuatro fotogramas
+C 0x419c medio ciclo pintando
+C 0x419f y medio borrando: eso es el parpadeo
+C 0x41a2 el paso 2
+C 0x41a9 0xA6 es la melodia que suena aqui
+C 0x41ae 80 fotogramas
+C 0x41b2 la escena 4
+C 0x41b8 y deja 0xE069 en alto, o sea a esperar
+L 0x41bd espera_32_y_pasa 32 fotogramas y a la escena siguiente
+L 0x41bf espera_y_pasa deja la cuenta atras en A y pasa de escena
+L 0x41c2 pasa_a_la_escena_siguiente sube (0xE000) y vuelve al paso 0
+C 0x41c2 la escena siguiente
+C 0x41c6 y siempre desde su primer paso
+C 0x41cb la escena 5
+C 0x41d3 los dos bytes de intentos, el del jugador 1 y el del 2
+C 0x41da si ninguno de los dos tiene intentos, se acabo
+C 0x41dc y si queda alguno, se le cede el turno
+C 0x41df la escena 4, que es la que monta la prueba
+C 0x41e4 la escena 6: el recuento
+C 0x41e7 solo se suma si el jugador estaba jugando
+C 0x41f1 la marca del jugador 2 a su puntuacion
+C 0x41fe y la del jugador 1 a la suya
+C 0x4201 0xE08E vuelve a 0x0001
+C 0x4209 la escena 7, paso 1
+C 0x420b hasta que 0xE012 no baje, no se sigue
+C 0x4214 baja el bit 6: se acabo la partida
+C 0x4217 y de vuelta a la escena 0
+C 0x421a el paso 2
+C 0x4222 si a alguno de los dos jugadores le queda algo, no se pasa de escena
+C 0x422e la escena 8, la ultima de la tabla
+C 0x4231 una prueba mas
+C 0x4236 borra los dieciseis bytes de 0xE110
+C 0x4242 y los dieciseis de 0xE090
+C 0x424d la prueba en curso, partida por dos
+C 0x4253 y el mismo valor a las cuatro parejas de bytes
+C 0x4266 el bit 7 de 0xE002 es de quien es el turno
+C 0x426b si el jugador 1 no juega, el turno es del 2
+C 0x4273 los tres intentos del jugador 1
+C 0x4279 y los del 2
+C 0x427e a montar la prueba
+L 0x4281 pone_los_tres_intentos tres intentos al jugador que este en HL
+B 0x4281 Al jugador que apunte HL -0xE070 el uno, 0xE080 el otro- le deja un 3 en el byte siguiente, que es el que L_42CE mira antes de cederle el turno. Si el jugador no esta en la partida, no se toca nada.
+C 0x4282 si el jugador no juega, no hay intentos que poner
+C 0x4285 tres
+L 0x4288 mandos_del_menu lo que corre al terminar la escena cuando no hay partida
+B 0x4288 La rutina que el latido apila cuando NO hay partida en curso: lee el mando y el teclado del jugador 1 juntos, se queda con los botones recien pulsados y con ellos mueve el menu de PLAY SELECT.
+C 0x4288 0x8F selecciona el mando 1 en el PSG
+C 0x428e el teclado, que sale con el MISMO formato que el mando
+C 0x4291 B trae lo del mando
+C 0x4292 estado en 0xE051 y flancos en 0xE050
+C 0x4298 si no hay nada recien pulsado, nada que hacer
+C 0x429a la cuenta atras a cero: lo que se elija empieza ya
+C 0x429f L = 0, o sea HL pasa a apuntar a 0xE000, la escena
+C 0x42a3 B = la escena
+C 0x42a4 y solo la escena 1 hace caso al mando
+C 0x42a6 los bits 4 y 5 son los dos disparos
+C 0x42aa 0xE052 es la linea elegida del menu
+C 0x42ac arriba: un jugador
+C 0x42b0 abajo: dos
+C 0x42b2 y ese valor son los flags de la partida que empieza
+C 0x42b5 la escena 3
+C 0x42b8 desde su paso 0
+C 0x42bf en las demas escenas, el disparo lleva a la 1
+C 0x42c1 0xB5 es la melodia del menu
+C 0x42c9 sin disparo, la flecha del menu cambia de linea
+C 0x42ca son dos: basta con darle la vuelta al bit 0
+L 0x42ce cede_el_turno pasa el turno al otro jugador si le quedan intentos
+B 0x42ce Mira los intentos del jugador que NO tiene el turno -0xE071 o 0xE081, elegido por el bit 7 de (0xE002)- y si le queda alguno le da la vuelta al bit 7, que es de quien es el turno. Si no le queda ninguno, el turno se queda donde esta.
+C 0x42d1 el bit 7 de 0xE002 se sube al acarreo
+C 0x42d5 con el turno del jugador 1, se miran los intentos del 2
+C 0x42d9 los intentos que le quedan al otro
+C 0x42db si no le queda ninguno, no hay relevo
+C 0x42df y el relevo es dar la vuelta a ese bit
+L 0x42e5 apunta_al_jugador_de_turno HL = 0xE071 o 0xE081
+C 0x42eb el bit 7 dice de quien es el turno
+C 0x42ed con el 1, HL ya esta
+L 0x42f1 borra_las_variables_de_partida y deja la partida montada
+B 0x42f1 Borra de 0xE063 a 0xE120 -las puntuaciones, las marcas y todo lo del atleta- y deja montada la partida: el jugador 1 dentro con tres intentos, y el 2 tambien si el bit 5 de (0xE002) dice que juegan dos. El record de 0xE060 NO se toca: sobrevive a la partida.
+C 0x42f1 desde 0xE063, o sea justo por encima del record
+C 0x42f4 189 bytes
+C 0x42f7 el borrado a cero de toda la vida: (HL)=0 y ldir sobre si mismo
+C 0x42fe 0xE070 = 1 (esta dentro) y 0xE071 = 3 (intentos)
+C 0x4304 y 0xE073 y 0xE074 a uno
+C 0x430e el bit 5 de 0xE002 es si juegan dos
+C 0x4310 si juega uno, ya esta
+C 0x4311 y si juegan dos, lo mismo para el segundo
+L 0x4319 esconde_los_sprites los 128 bytes de atributos a 0xC3
+B 0x4319 Llena de 0xC3 los 128 bytes de la tabla de atributos de sprite (0x3B00). Un 0xC3 en el byte de la Y es una fila de la pantalla que no existe, asi que los 32 sprites quedan escondidos de golpe.
+C 0x4319 la tabla de atributos de sprite
+C 0x431c 32 sprites por cuatro bytes
+C 0x431f y un 0xC3 en la Y esconde el sprite
+L 0x4324 suma_a_la_puntuacion tres bytes en BCD, con tope y record
+B 0x4324 Suma en BCD los tres bytes de (DE) a los tres de (HL), de menos a mas peso. Si la suma se sale de 999999 clava el tope en 0xE060..0xE062. Y si no se sale, compara el resultado con el record y lo copia si lo ha batido.
+C 0x4324 el bit 6 de 0xE002 pasa al signo
+C 0x4328 y sin partida en curso, no se suma nada
+C 0x4329 tres bytes
+C 0x432b el acarreo, limpio antes de empezar
+C 0x432d el `adc` y el `daa` juntos: eso es sumar en decimal
+C 0x4334 y si no se ha desbordado, a mirar el record
+C 0x4336 999999 en tres bytes, escritos con dos palabras que se solapan
+L 0x4342 actualiza_el_record compara con 0xE060 y lo copia si se ha batido
+C 0x4342 HL vuelve al byte mas alto de la puntuacion
+C 0x4345 y DE al mas alto del record
+C 0x4348 apunta el sitio, que despues hace falta para el ldd
+C 0x4349 se compara de mas peso a menos
+C 0x434b si el record es mayor, se acabo
+C 0x434d y si son distintos y no ha habido acarreo, la puntuacion es la mayor
+C 0x4352 copiar hacia atras, de mas peso a menos
+C 0x4358 y el record ya es este
+L 0x435b escribe_cifras_bcd los digitos de un numero BCD, sin ceros a la izquierda
+B 0x435b Saca por el puerto de datos del VDP los digitos de un numero en BCD leido de (DE) hacia atras, B bytes o sea 2B digitos. L hace de mascara de ceros: mientras vale 0 todo digito sale como el tile 0x00 -el espacio-, y en cuanto aparece un digito distinto de cero se queda en 0xFF y ya salen todos. El ultimo byte siempre se pinta entero, para que un cero valga 0 y no un hueco.
+C 0x435b coloca el VDP donde toca y deja el puerto de datos a mano
+C 0x435f la mascara de ceros: de momento se comen todos
+C 0x4361 el byte, que trae dos digitos
+C 0x4366 el de arriba primero
+C 0x4368 mientras sean ceros, no se pinta
+C 0x436a y en cuanto hay un digito, ya salen todos
+C 0x436c en el ultimo byte
+C 0x436f siempre se pinta, aunque sea un cero
+C 0x4372 los digitos son los tiles del 0x10 al 0x19
+C 0x4374 la mascara: 0 lo convierte en el tile del espacio
+C 0x4375 y a la VRAM
+C 0x4378 el digito de abajo
+C 0x4383 hacia atras: el numero se lee de mas peso a menos
+L 0x4388 parpadea_el_rotulo_de_la_prueba lo que corre al terminar la escena con partida
+B 0x4388 La rutina que el latido apila cuando SI hay partida: cada dieciseis fotogramas pinta o borra un rotulo de la tabla de nombres, y la cuenta la lleva el contador de fotogramas. Encendido cuarenta y ocho fotogramas, apagado dieciseis. En el ciclismo no hay rotulo que parpadear.
+C 0x4388 la prueba en curso
+C 0x438e la 0, el ciclismo, no tiene rotulo
+C 0x438f la casilla 0x32 de la pantalla
+C 0x4392 salvo en el curling
+C 0x4396 que lo lleva en la 0x10
+C 0x4399 de un tiron: E = los flags y D = el contador de fotogramas
+C 0x439e uno de cada dieciseis fotogramas
+C 0x43a1 A ya vale 0, o sea la mascara que BORRA
+C 0x43a3 los bits 4 y 5 del contador
+C 0x43a5 con los dos a cero -dieciseis de cada sesenta y cuatro-, apagado
+C 0x43a7 y el resto del tiempo, encendido
+C 0x43a8 el bit 7 de los flags, de quien es el turno
+C 0x43aa el rotulo de un jugador
+C 0x43af y el del otro
+C 0x43b2 el interprete de guiones, entrando con el destino ya puesto
+L 0x43b5 resta_de_24_bits CDE -= los tres bytes de (HL)
+C 0x43b5 los tres bytes que se restan salen de 0xE08B
+C 0x43b9 el de menos peso, sin acarreo
+C 0x43bd y los otros dos con el
+L 0x43c4 limpia_la_pantalla esconde los sprites y borra la tabla de nombres
+C 0x43c7 la tabla de nombres
+C 0x43ca 768 casillas, o sea las tres pantallas de 32x8
+C 0x43cd el tile 0 es el espacio
+L 0x43d1 setwrt_y_guarda_el_puerto SETWRT dejando el puerto de datos en C'
+B 0x43d1 SETWRT, y ademas deja en C' el puerto de datos del VDP, que la BIOS guarda en 0x0006. Es lo que permite a las rutinas de abajo escribir a la VRAM con un `out (c),a` pelado, sin pasar por la BIOS en cada byte.
+C 0x43d2 SETWRT deja el VDP apuntando y en modo escritura
+C 0x43d6 la BIOS guarda ahi el puerto de datos del VDP
+C 0x43d9 y se queda en C' para todo lo que venga
+L 0x43dd ldirvm LDIRVM con los registros al reves
+L 0x43e1 ldirvm_en_los_tres_tercios el mismo bloque en las tres pantallas
+B 0x43e1 SCREEN 2 tiene la tabla de patrones partida en tres tercios de 2 KB, uno por cada tercio de la pantalla. Estas tres rutinas -copiar, llenar y descomprimir- hacen lo mismo tres veces subiendo 0x800 cada vez, que es como se pone un dibujo igual en toda la pantalla.
+C 0x43e2 tres tercios
+C 0x43ea 2 KB, que es lo que ocupa un tercio
+L 0x43f4 filvrm_en_los_tres_tercios el mismo relleno en las tres pantallas
+C 0x43f4 tres tercios
+L 0x4405 descomprime_en_los_tres_tercios el mismo bloque RLE en las tres pantallas
+C 0x4405 tres tercios
+L 0x4415 pinta_guion_de_tiles el interprete de guiones, pintando
+B 0x4415 EL INTERPRETE DE GUIONES DE ROTULO. Un guion son [destino de VRAM, word] y detras los tiles, uno por casilla; 0xFE cambia de destino y 0xFF termina. C es la mascara con la que sale cada tile: 0xFF lo pinta tal cual y 0x00 lo convierte en el tile del espacio, o sea BORRA el mismo rotulo sin necesidad de una segunda tabla. De aqui salen todos los rotulos del cartucho.
+C 0x4415 la mascara que PINTA
+C 0x4417 el destino de VRAM, que va en la cabecera del guion
+C 0x441c y los tiles empiezan detras
+C 0x441d el tile
+C 0x4420 0xFF termina el guion
+C 0x4423 0xFE trae otro destino
+C 0x4425 la mascara: con C=0 lo que sale es el tile del espacio
+C 0x4426 y a la casilla
+C 0x4429 la de al lado
+L 0x442c borra_guion_de_tiles el mismo interprete, con la mascara a cero
+C 0x442c la mascara que BORRA
+L 0x4430 parpadea_guion_de_tiles pinta o borra segun el bit 4 de (0xE07D)
+B 0x4430 El parpadeo: (0xE07D) baja un punto por llamada y su bit 4 decide si toca pintar o borrar, o sea dieciseis fotogramas encendido y dieciseis apagado. Cuando llega a cero devuelve Z, que es como el rotulo dice que ya ha parpadeado bastante.
+C 0x4433 la cuenta atras del parpadeo
+C 0x4434 y al llegar a cero, Z: se acabo el parpadeo
+C 0x4435 el bit 4: cambia cada dieciseis
+C 0x443f devuelve NZ, que es "sigo parpadeando"
+L 0x4442 descomprime_a_vram el RLE, leyendo el destino de la cabecera
+L 0x4448 descomprime_a_vram_en el mismo, con el destino ya en HL
+B 0x4442 EL DESCOMPRESOR RLE A VRAM. Un bloque es [destino de VRAM, word] y detras los mandatos, un byte cada uno: 0x00 cierra el bloque, 0x80 vuelve a la cabecera y cambia de destino, 0x01..0x7F repite esa cuenta de veces el byte siguiente, y 0x81..0xFF copia tal cual los (n & 0x7F) bytes que vengan detras. Es el mismo formato de Ping Pong, de Soccer y de Road Fighter, pero sin el espejo de aquel. Rehecho en tools/rle.py.
+C 0x4442 el destino, de la cabecera del bloque
+C 0x4448 coloca el VDP y deja el puerto en C'
+C 0x444b el mandato
+C 0x444d 0x00 cierra el bloque
+C 0x4450 quitarle el bit 7
+C 0x4452 si no ha cambiado, es que no lo tenia: repeticion
+C 0x4455 y el 0x80 pelado
+C 0x4456 vuelve a la cabecera: otro destino y a seguir
+C 0x4458 los que se copian tal cual
+C 0x445c a la VRAM, sin pasar por la BIOS
+C 0x4463 el byte que se repite
+C 0x4466 y sale tantas veces como diga la cuenta
+L 0x446d borra_la_vram los 16 KB a cero, con la pantalla apagada
+C 0x446d 0xB8 al reproductor: callar
+C 0x4472 y con la pantalla apagada
+C 0x4477 desde el byte 0 de la VRAM
+C 0x447a los 16 KB enteros
+L 0x4481 pon_los_registros_del_vdp los ocho valores de 0x4492
+C 0x4481 la tabla de los ocho valores
+C 0x4484 ocho registros
+C 0x4486 empezando por el 0
+C 0x4489 WRTVDP: B al registro C
+C 0x448d el siguiente registro
+L 0x449a pon_el_color_de_fondo el registro 7
+C 0x449a el registro 7 es el color del texto y el del fondo
+L 0x449f lee_los_mandos los dos jugadores, mando y teclado juntos
+B 0x449f Lee a los dos jugadores una vez por fotograma. Cada uno suma su mando y su teclado con un `or`, asi que las dos cosas valen a la vez y sin elegir, y de cada uno quedan dos bytes: el estado (0xE009 y 0xE007) y los botones RECIEN pulsados (0xE008 y 0xE006).
+C 0x449f 0x8F es el mando 1
+C 0x44a5 y su teclado
+C 0x44a9 estado en 0xE009, flancos en 0xE008
+C 0x44af 0xCF es el mando 2
+C 0x44b5 y el teclado del jugador 2
+C 0x44b9 estado en 0xE007, flancos en 0xE006
+L 0x44bc guarda_estado_y_flancos deja el estado en (HL) y los flancos en (HL-1)
+B 0x44bc El truco de los flancos, en siete instrucciones: A trae lo que esta pulsado ahora, (HL) lo que estaba pulsado antes. El `xor` da lo que ha cambiado, y el `and` con lo de ahora deja solo lo que se acaba de pulsar. Lo pulsado va a (HL) y lo recien pulsado a (HL-1). Sin esto, mantener un boton contaria una vez por fotograma.
+C 0x44bc lo del teclado mas lo del mando
+C 0x44bd lo que estaba pulsado antes
+C 0x44be y lo de ahora ya es lo de antes
+C 0x44bf lo que ha cambiado
+C 0x44c0 y de eso, lo que esta pulsado: lo RECIEN pulsado
+C 0x44c2 que se guarda un byte mas abajo
+L 0x44c4 lee_el_mando_por_el_psg los seis bits del puerto de mandos
+C 0x44c4 el registro 15 del PSG elige que mando se lee
+C 0x44c9 y el 14 se lee con las interrupciones cerradas
+C 0x44d0 el PSG da los bits al reves: pulsado es 0
+C 0x44d1 y solo cuentan seis: cuatro direcciones y dos disparos
+L 0x44d4 teclado_del_jugador_1 las teclas, con el formato del mando
+B 0x44d4 El teclado del jugador 1, traducido bit a bit al MISMO formato que el mando -bit 0 arriba, 1 abajo, 2 izquierda, 3 derecha, 4 disparo A, 5 disparo B-, que es lo que permite sumarlos luego con un simple `or`. Las flechas son la fila 8 de la matriz, el espacio es el disparo A y SELECT, de la fila 7, el disparo B. Las rotaciones son acumulativas: cinco en total sobre el mismo byte, y de cada paso se sacan los bits que ya han caido en su sitio.
+C 0x44d4 la fila 7 de la matriz
+C 0x44d9 pulsado es 0: al derecho
+C 0x44da SELECT, del bit 6 al 5
+C 0x44db y el bit 5 es el disparo B
+C 0x44de la fila 8: las cuatro flechas, DEL, INS, HOME y el espacio
+C 0x44e3 al derecho
+C 0x44e6 apuntar el byte rotado dos veces
+C 0x44e7 la izquierda ya ha caido en el bit 2
+C 0x44e9 y se suma a lo que traia SELECT
+C 0x44ec dos rotaciones mas, cuatro en total
+C 0x44ef la derecha en el bit 3 y el espacio en el bit 4, que es el disparo A
+C 0x44f4 la quinta
+C 0x44f5 arriba en el bit 0 y abajo en el bit 1
+
+
+# ======================================================================
+# COMENTARIOS DE LINEA
+# ======================================================================
+L 0x44f9 teclado_del_jugador_2 solo dos teclas, con el formato del mando
+B 0x44f9 El teclado del jugador 2, y es mucho mas corto que el del 1 porque solo tiene DOS teclas: SHIFT, que entra como si fuese la derecha del mando, y la Q, como el disparo A. Sale con el mismo formato que el mando para poder sumarse a el con un `or`.
+C 0x44f9 la fila 6 de la matriz: SHIFT, CTRL, GRAPH, CAPS, CODE y las tres teclas de funcion
+C 0x44fe de momento, nada pulsado
+C 0x4500 el bit 0 de esa fila es el SHIFT
+C 0x4501 y pulsado es 0, asi que con acarreo NO esta pulsado
+C 0x4503 el bit 3 es la derecha del mando
+C 0x4505 la fila 4: de la K a la R
+C 0x450a su bit 6 es la Q
+C 0x450e sin la Q, nada
+C 0x4510 y con ella, el bit 4, que es el disparo A
+C 0x4512 las dos juntas
+L 0x4569 monta_la_fuente los 48 patrones del texto, en blanco, y el color plano
+B 0x4569 Monta lo que hace falta para escribir: los dieciseis primeros tiles se pintan de un color plano cada uno -tinta y fondo iguales, o sea rectangulos macizos-, detras van los 48 patrones de la fuente en 0x2080 y en blanco, y por ultimo el trozo de tabla de nombres del logotipo. Los tres tercios de SCREEN 2 reciben lo mismo, asi que el texto se puede escribir en cualquier fila de la pantalla.
+C 0x4569 el color del tile 0
+C 0x456a la tabla de color empieza en el byte 0 de la VRAM
+C 0x456d ocho bytes por tile
+C 0x4570 los dieciseis primeros tiles
+C 0x4573 los ocho bytes de un tile
+C 0x4577 y en los tres tercios de la pantalla
+C 0x457b el color del tile siguiente
+C 0x457c 0x11 mas: tinta y fondo suben a la vez, asi que cada tile es un color macizo
+C 0x4581 los patrones de la fuente
+C 0x4584 en 0x2080, o sea a partir del tile 0x10
+C 0x458a y el trozo de tabla de nombres que el propio bloque situa
+C 0x4590 0xF0: tinta blanca sobre fondo transparente
+C 0x4592 desde el color del tile 0x10
+C 0x4595 y los 48 de la fuente: toda ella sale en blanco
+L 0x471f prepara_el_logotipo catorce pasos, empezando por la fila de abajo
+C 0x471f catorce pasos de cortina
+C 0x4724 y la primera fila, la de mas abajo de la pantalla
+C 0x472a de paso pasa por el cadaver de 0x4010
+L 0x472d monta_los_tiles_del_logotipo los 27 patrones grandes, en blanco
+C 0x472d los patrones del logotipo
+C 0x4730 0x6200 son los 0x2200 de la VRAM: SETWRT tira los dos bits de arriba de H
+C 0x4736 desde el color del tile 0x40
+C 0x4739 los 27 patrones
+C 0x473c y todos en blanco
+L 0x4741 sube_el_logotipo_una_fila la cortina, un paso por llamada
+B 0x4741 LA CORTINA DEL LOGOTIPO. El logotipo de Konami no se dibuja de golpe: se pinta tres filas de tiles y se borra la de debajo, y en la llamada siguiente todo eso sube una fila. Catorce llamadas -una cada dos fotogramas- y el dibujo entero ha recorrido la pantalla de abajo arriba. Los veintiseis tiles van seguidos, del 0x40 al 0x59, asi que basta con ir subiendo el indice: no hay tabla ninguna.
+C 0x4741 la fila por la que va la cortina
+C 0x4744 restarle 0x20, que es una fila de la tabla de nombres
+C 0x4748 y la proxima vez sera una mas arriba
+C 0x474b el primer tile del logotipo
+C 0x474d tres en la fila de arriba
+C 0x4752 once en la de en medio
+C 0x4758 y doce en la de abajo
+C 0x475c borra las doce casillas de mas abajo, que es por donde acaba de pasar
+C 0x475d B ha quedado a cero en el djnz: son los doce que dice C
+C 0x4760 un paso menos
+C 0x4763 y al llegar a cero devuelve Z, que es como dice que ya ha subido del todo
+L 0x4765 fila_de_tiles_seguidos B tiles con el indice subiendo, y baja una fila
+C 0x4766 el tile, a la casilla
+C 0x476a el siguiente indice: los tiles del logotipo van seguidos
+C 0x476d la fila por la que se empezo
+C 0x476e y se devuelve la de debajo
+L 0x480a monta_la_pantalla_del_titulo la fuente, el rotulo y sus bloques repetidos
+B 0x480a LA PANTALLA DEL TITULO. Por orden: el color de fondo, la pantalla limpia, la fuente, los 66 patrones del rotulo HYPER SPORTS 3 con su color, y por ultimo los bloques repetidos, que son el ahorro: cuatro trozos del rotulo son el MISMO patron de ocho bytes puesto en diez, once, once y doce casillas seguidas, y para eso no hace falta comprimirlos, basta con una tabla que diga cuantos y donde.
+C 0x480a el registro 7: el color del fondo
+C 0x480f la pantalla, limpia
+C 0x4812 la fuente
+C 0x4815 los patrones del rotulo
+C 0x4818 en 0x2580, o sea a partir del tile 0xB0
+C 0x481e y su color
+C 0x4821 en la tabla de color, en la misma posicion
+C 0x4827 y la tabla de los bloques repetidos
+L 0x482a bloques_repetidos_de_patron el mismo patron en varias casillas seguidas
+C 0x482a la tabla, a HL
+C 0x482c el 0x00 cierra la tabla
+C 0x482e cuantas casillas seguidas
+C 0x4830 el destino de VRAM
+C 0x4834 HL el destino, DE los ocho bytes del patron
+C 0x4838 un tile
+C 0x483b y en los tres tercios
+C 0x483f la casilla siguiente
+C 0x4845 y otra vez el mismo patron
+C 0x4847 detras del patron viene la entrada siguiente
+C 0x484c y a por ella
+L 0x484e monta_el_titulo_entero la pantalla, el rotulo en la tabla de nombres y el menu
+C 0x484e los patrones y su color
+C 0x4851 la lista de tramos del rotulo
+C 0x4854 el rotulo empieza en el tile 0xB0
+C 0x4856 y en la casilla 0x6C de la pantalla
+L 0x4859 escribe_los_tramos_del_rotulo pares de cuantos tiles y cuanto saltar
+B 0x4859 El rotulo HYPER SPORTS 3 son sesenta y seis tiles distintos que en la tabla de nombres van casi seguidos, asi que la tabla de 0x4878 no guarda los indices: guarda solo cuantos tiles seguidos y cuanto hay que saltar hasta el tramo siguiente. El indice sube solo desde 0xB0 y no se repite ninguno.
+C 0x4859 cuantos tiles seguidos
+C 0x485b el 0x00 cierra la lista
+C 0x485f cuanto saltar desde donde se quedo
+C 0x4864 el indice del tile por el que iba
+C 0x4865 y a la casilla
+C 0x4869 el siguiente, que va pegado
+C 0x486c el indice, apuntado para el tramo que viene
+C 0x486f el guion de (c)KONAMI 1985, PLAY SELECT y 1PLAYER
+C 0x4872 al terminar en su 0xFF, DE ha quedado justo encima del guion siguiente
+C 0x4875 que es el de 2PLAYERS: dos guiones pegados, y el segundo sale gratis
+L 0x4889 parpadea_el_cursor_del_menu la manita, encendida en una linea y borrada en la otra
+B 0x4889 EL CURSOR DEL MENU. La manita son dos tiles que se pintan en la linea elegida y se borran en la otra, y el bit 3 de la cuenta atras de la escena hace el parpadeo: ocho fotogramas encendida y ocho apagada. El mismo guion sirve para las dos cosas porque el interprete lleva mascara: con 0xFF pinta y con 0x00 escribe el tile del espacio.
+C 0x4889 la cuenta atras de la escena
+C 0x488c su bit 3 cambia cada ocho fotogramas
+C 0x488e la mascara que pinta
+C 0x4892 o la que borra
+C 0x4893 la linea de 1PLAYER
+C 0x4896 y la de 2PLAYERS
+C 0x4899 la linea elegida
+C 0x489f con la de abajo elegida, se cambian
+C 0x48a0 la otra linea, apuntada para despues
+C 0x48a1 en la elegida, la manita parpadeando
+C 0x48a5 y en la otra, borrada siempre
+C 0x48a7 los dos tiles de la manita, que van sin cabecera
+C 0x48aa el interprete, entrando con el destino ya en HL
+
+
+# ======================================================================
+# COMENTARIOS DE LINEA
+# ======================================================================
+L 0x4ad2 suena_si_hay_partida arranca la pista solo con el bit 6 de (0xE002)
+C 0x4ad4 el bit 6 dice si hay partida en curso
+C 0x4ad9 y sin partida, esta no suena
+L 0x4add arranca_una_pista guarda los registros y llama al de verdad
+B 0x4add La puerta de entrada del sonido: se llama con el numero de pista en A, y lo unico que hace es cerrar las interrupciones y guardar los registros, porque quien la llama esta a mitad de otra cosa. La de arriba es la misma con una condicion delante.
+C 0x4add el reproductor toca el PSG: no puede interrumpirse a la mitad
+L 0x4aeb reparte_la_pista_por_canales cuantos canales ocupa y si tiene prioridad
+B 0x4aeb REPARTE UNA PISTA. Cada pista sabe cuantos canales del PSG necesita, y lo sabe por su NUMERO: de la 0x04 a la 0x0B ocupa uno, de la 0x0C a la 0x1F dos, y de la 0x20 en adelante los tres. La 0x01 es el efecto de barrido y las de por debajo de la 0x04 empiezan en el canal 2. Antes de sonar hay una prueba de prioridad: la pista nueva solo entra si su numero es MAYOR que el de la que ya esta sonando en ese canal, con dos excepciones -la 0x09 y la 0x2F- que se conforman con empatar.
+C 0x4aeb el numero de pista, apuntado con sus bits de arriba
+C 0x4aec y sin ellos, el numero pelado
+C 0x4aee dos canales, que es lo mas comun
+C 0x4af0 el byte de estado del canal 1
+C 0x4af3 la pista 1 es el barrido
+C 0x4af8 y sus dos banderas, a cero
+C 0x4b03 por debajo de la 0x0C
+C 0x4b07 la 0x0C justa empieza en el canal 2
+C 0x4b0c de la 0x20 para arriba
+C 0x4b10 hacen falta los tres canales
+C 0x4b13 con un canal basta
+C 0x4b14 y las de por debajo de la 4
+C 0x4b18 empiezan en el canal 2
+C 0x4b1b la pista que esta sonando ahi ahora
+C 0x4b22 la 0x09
+C 0x4b26 y la 0x2F
+C 0x4b2a las demas tienen que ser mayores
+C 0x4b2c y ni siquiera vale empatar
+C 0x4b2f estas dos si valen empatadas
+C 0x4b31 dos bytes por entrada
+C 0x4b32 la tabla de las 56 pistas
+C 0x4b38 atras dos, hasta el primer byte del canal
+L 0x4b3a monta_el_canal deja el canal listo para sonar la pista
+C 0x4b3a la cuenta atras de la nota: la primera entra ya
+C 0x4b3d y su duracion
+C 0x4b40 la pista, con sus bits de modo
+C 0x4b42 el puntero de lectura, de la tabla
+C 0x4b4d el bucle, sin vueltas dadas
+C 0x4b51 y sin desafine
+C 0x4b54 catorce bytes: el canal siguiente
+C 0x4b57 con el puntero siguiente de la tabla
+C 0x4b58 y una pista puede ocupar hasta tres
+L 0x4b5b repite_o_termina_el_bucle el mandato 0xFE de una pista
+B 0x4b5b El 0xFE de una pista es el bucle: detras van la cuenta de vueltas y la direccion a la que volver. (IX+9) lleva las que se han dado, y cuando llega a la cuenta se pone a cero y la pista sigue por detras del mandato. Una cuenta negativa no se agota nunca: ese es el bucle infinito de la musica de fondo.
+C 0x4b5c las vueltas dadas
+C 0x4b5f una mas
+C 0x4b60 contra las que pide el mandato
+C 0x4b61 y si son las que pide, se acabo el bucle
+C 0x4b63 con una cuenta negativa esto no se cumple jamas: bucle sin fin
+C 0x4b67 las vueltas que van
+C 0x4b6a y a repetir desde donde diga
+C 0x4b78 el bucle, a cero para la proxima
+C 0x4b7c y la pista sigue por detras del mandato
+C 0x4b7f una unidad de duracion, que la nota que viene ya viene tarde
+L 0x4b85 enciende_el_ruido_del_canal el registro 7 del PSG
+B 0x4b85 El mezclador del PSG (registro 7), donde un bit a 1 APAGA. Los bits 3, 4 y 5 son el ruido de cada canal, y la copia de (0xE03A) evita tener que leerlo. Lo curioso es el remate: el tono del canal A se queda SIEMPRE igual que su ruido, encendido con el y apagado con el, asi que ese canal no suena solo.
+C 0x4b85 la copia del mezclador
+C 0x4b89 C vale 1, 3 o 5 segun el canal
+C 0x4b8f tres rotaciones: los bits 3, 4 y 5 son el ruido de cada canal
+C 0x4b92 con D=1 se apaga
+C 0x4b95 y con D=0 se enciende: en el PSG un bit a 0 es lo que deja pasar
+C 0x4b9a el tono del canal A, apagado
+C 0x4b9c salvo que su ruido este encendido
+C 0x4ba2 la copia, para la proxima vez
+C 0x4ba8 y al PSG
+L 0x4bab reproduce_un_fotograma los tres canales, una vez por interrupcion
+B 0x4bab EL REPRODUCTOR. Se llama una vez por fotograma desde la interrupcion y recorre los tres canales, catorce bytes cada uno, desde 0xE010. De cada canal salen tres caminos: si esta sonando la pista 1 es el barrido, si el byte de estado es 0 esta callado y hay que callarlo del todo, y si no, a por la nota que toque.
+C 0x4bab el mezclador, tal y como quedo
+C 0x4bb1 el canal A: los registros 0 y 1 del PSG
+C 0x4bb3 el primero de los tres canales
+C 0x4bb8 tres canales
+C 0x4bba catorce bytes cada uno
+C 0x4bbe la pista que suena en este canal
+C 0x4bc1 la 1 es el barrido
+C 0x4bc9 y el 0 es que no suena nada
+C 0x4bcc callarlo
+C 0x4bd1 y si no, la nota
+C 0x4bd4 el canal siguiente del PSG
+C 0x4bd7 y sus catorce bytes
+L 0x4bdc barrido_de_frecuencia el efecto de la pista 1
+B 0x4bdc EL BARRIDO. La pista 1 no lee notas de ninguna parte: arranca con los cuatro parametros de 0x4C26 y de ahi en adelante le suma 9 al periodo en cada fotograma, o sea que el tono baja solo, hasta pasarse de 0x90 y callarse. Los cuatro bytes se copian con un `lddr`, hacia atras, porque van pegados al reves.
+C 0x4bdc los cuatro bytes del efecto, en el canal 3
+C 0x4bdf y sus parametros
+C 0x4be7 o en los otros dos
+C 0x4bf5 con el estado a cero, el efecto arranca
+C 0x4bf9 el tope
+C 0x4bfc pasado el tope, se sigue bajando
+C 0x4c03 y si no, a callar
+C 0x4c08 el periodo
+C 0x4c09 nueve mas cada fotograma: el tono baja
+C 0x4c0f y el acarreo al byte de arriba
+C 0x4c11 el puntero del canal se queda apuntando a los parametros
+C 0x4c18 los cuatro bytes de arranque
+C 0x4c1d hacia atras, que es como estan puestos
+L 0x4c2e nota_del_canal la nota que toque en este fotograma
+C 0x4c2e el bit 6 del estado
+C 0x4c30 apagar
+C 0x4c32 sin el, el ruido de este canal se apaga
+L 0x4c35 sigue_la_nota la cuenta atras, y si se agota la nota siguiente
+C 0x4c38 con el bit 7 puesto, la pista es de las largas
+C 0x4c3c un fotograma menos de nota
+C 0x4c3f y hasta que no se agota, no hay nota nueva
+L 0x4c40 lee_el_mandato_siguiente por donde iba la pista
+C 0x4c40 el puntero de lectura
+C 0x4c46 el mandato
+C 0x4c47 0xFE es el bucle
+C 0x4c4c y 0xFF el final: a callar
+C 0x4c4f las pistas largas se leen aparte
+C 0x4c56 0x2n
+C 0x4c5d es la duracion de las notas que vengan
+C 0x4c64 0xE8
+C 0x4c6a trae el desafine, y detras sigue la pista
+C 0x4c71 0x1n
+C 0x4c78 es el periodo del ruido, cinco bits
+C 0x4c7c en el canal A el mandato trae un byte mas
+C 0x4c81 cuyo bit 4 decide si el ruido va grave o agudo
+C 0x4c8d el registro 6 del PSG es el ruido
+C 0x4c92 y encender el ruido de este canal
+C 0x4c98 el bit 6 del estado
+C 0x4caa el nibble de arriba es el volumen
+C 0x4cad y el de abajo, con el byte siguiente, la nota
+C 0x4cb1 la pista sigue detras
+C 0x4cb5 el desafine
+C 0x4cbe el periodo, al PSG
+C 0x4cc2 el volumen baja al nibble de abajo
+L 0x4cc6 arranca_la_nota el volumen, la duracion y la cuenta del decaimiento
+C 0x4cc7 la duracion que se dijo
+C 0x4ccd el sumando del decaimiento
+C 0x4cd1 y de ahi sale la cuenta que lo lleva
+L 0x4cd6 calla_el_canal ruido apagado, estado a cero y volumen a cero
+C 0x4cd6 el ruido de este canal, apagado
+C 0x4cdc sin desafine
+C 0x4cdf y sin pista
+C 0x4ce2 volumen cero
+L 0x4ce5 decae_el_volumen la nota que se apaga sola mientras dura
+B 0x4ce5 El decaimiento: mientras la nota dura, su volumen baja de uno en uno cada vez que la cuenta de (IX+8) alcanza a la de (IX+0). Los dos bytes que gobiernan la caida -cuanto se suma y a partir de que punto- vienen en el propio mandato de la pista, asi que una nota puede apagarse deprisa o quedarse sostenida.
+C 0x4ce5 un fotograma menos
+C 0x4ce8 y al agotarse, a por el mandato siguiente
+C 0x4ceb la cuenta del decaimiento
+C 0x4cf1 cuando alcanza a la de la nota
+C 0x4cf7 el umbral
+C 0x4cfe por debajo del umbral ya no baja mas
+C 0x4d02 el volumen de ahora
+C 0x4d05 uno menos
+C 0x4d06 y de cero no pasa
+L 0x4d0b saca_el_volumen los registros 8, 9 y 10 del PSG
+C 0x4d0b C vale 1, 3 o 5
+C 0x4d0c y esta cuenta lo convierte en el 8, el 9 o el 10, que son los volumenes
+L 0x4d13 mandato_de_pista_larga los mandatos de las pistas con el bit 7 puesto
+B 0x4d13 Los mandatos de las pistas largas, que se pueden encadenar todos antes de una nota: 0xDn fija la unidad de duracion, 0xFn el volumen de arranque y los dos bytes del decaimiento, 0xEn con el bit 3 puesto el desafine y sin el la octava. Detras viene siempre el byte de la nota: el nibble de arriba es el semitono y el de abajo cuantas unidades dura.
+C 0x4d16 0xDn
+C 0x4d1d la unidad de duracion
+C 0x4d22 0xFn
+C 0x4d28 el volumen de arranque
+C 0x4d2d cuanto se suma al decaimiento
+C 0x4d32 y a partir de donde deja de bajar
+C 0x4d37 0xEn
+C 0x4d3d su bit 3
+C 0x4d41 con el, el desafine, y se sigue leyendo mandatos
+C 0x4d47 y sin el, la octava
+C 0x4d4c el nibble de abajo de la nota: cuantas unidades dura
+C 0x4d4f la unidad
+C 0x4d54 sumada tantas veces como diga
+C 0x4d59 esa es la duracion de la nota
+C 0x4d5c el byte de la nota
+C 0x4d5d la pista sigue detras
+C 0x4d60 el nibble de arriba: el semitono
+C 0x4d67 el 0x0C es el silencio
+C 0x4d6b y los demas suenan al volumen de arranque
+C 0x4d71 la nota, ya sonando
+C 0x4d75 la tabla de periodos
+C 0x4d7b el periodo del semitono, ocho bits
+C 0x4d7e la octava
+C 0x4d85 y cada octava mas grave es el periodo por dos
+L 0x4d88 saca_el_periodo los dos registros de tono del canal
+C 0x4d88 el desafine
+C 0x4d8e que es un punto de periodo: lo justo para que dos canales batan
+C 0x4d90 el byte de arriba, al registro impar
+C 0x4d96 y el de abajo al par
+L 0x4d9a apunta_el_mandato_siguiente deja el puntero de la pista donde se quedo
+C 0x4d9a el byte de detras del mandato
+
+
+# ======================================================================
+# COMENTARIOS DE LINEA
+# ======================================================================
+L 0x53b1 monta_la_prueba reparte segun cual de las cuatro toca
+B 0x53b1 MONTA LA PRUEBA. Lo comun -la fuente y un juego de patrones- lo pone para las cuatro, y a partir de ahi se separa: el ciclismo tiene su montaje aqui mismo, el curling se va entero a 0xA839 y el triple salto y la pertiga comparten el de 0x73D9, igual que comparten motor.
+C 0x53b1 la fuente, que la usan las cuatro
+C 0x53b4 los patrones comunes, a partir del tile 0x06
+C 0x53bd y su color
+C 0x53c6 la cuenta del parpadeo del rotulo
+C 0x53cb la prueba en curso
+C 0x53d0 la 0 es el ciclismo
+C 0x53d2 la 2 es el curling, que se monta entero aparte
+C 0x53d7 quedan el triple salto y la pertiga: 512 bytes de variables, a cero
+C 0x53e5 el estado de arranque del atleta
+C 0x53ee y las dos preparaciones que comparten
+C 0x53f1 con el bit 1 de la prueba se distinguen: sin el, el triple salto
+C 0x53f4 el desplazamiento de arranque de la pista, en el TRIPLE SALTO
+C 0x53f9 y en la pertiga: `es_la_pertiga` deja Z en el triple salto, o sea que el 0x2BF es el suyo. Cotejado contra (0xE129) en la RAM del emulador
+L 0x5402 monta_el_ciclismo la unica prueba con su montaje aqui
+C 0x5402 la pista
+C 0x5405 las variables de la prueba
+C 0x5408 los patrones de la bicicleta y el circuito
+C 0x5411 y su color
+C 0x541a la tabla de nombres
+L 0x5420 monta_el_marcador_de_arriba la franja de arriba, comun a las cuatro
+C 0x5420 los patrones del marcador
+C 0x5429 su color
+C 0x5432 y sus casillas
+C 0x5438 dos tiles mas, en blanco
+L 0x5443 valor_de_la_vuelta la entrada de la tabla que toca segun la vuelta
+B 0x5443 (0xE06A) lleva en los dos bits de abajo la prueba y en los de arriba la vuelta, o sea cuantas veces se han dado ya las cuatro. Esta rutina saca la vuelta, la recorta a siete y con ella indexa la tabla que le pasen: asi es como suben las exigencias sin que haya una tabla por prueba.
+C 0x5443 la prueba y la vuelta, juntas
+C 0x5446 dos rotaciones dejan solo la vuelta
+C 0x544a de la octava vuelta en adelante
+C 0x544e no se sube mas
+C 0x5450 dos bytes por entrada
+C 0x5454 la entrada
+C 0x5457 y HL, en los tres bytes que la resta consume
+L 0x546b monta_a_los_dos_ciclistas los dos bloques de sesenta y cuatro bytes
+B 0x546b Monta a los dos ciclistas, y solo la llama el ciclismo. Borra de 0xE0A0 a 0xE3FF, deja listo el bloque del jugador 1 y lo COPIA entero sobre el del 2, sesenta y cuatro bytes mas arriba, con lo que los dos empiezan iguales; encima de cada uno van sus cuatro bytes propios, que son los dos grupos de 0x5511. Esos mismos bytes de 0xE0A0 son los atributos de sprite en el triple salto y en la pertiga: cada prueba usa la RAM a su manera. Al final descomprime a la RAM los dos bloques grandes de 0xE400 y 0xE600.
+C 0x546b la primera figura del ciclista
+C 0x5470 la del jugador 1
+C 0x5476 y la del 2
+C 0x547d los intentos de los dos, a cero
+C 0x5483 desde el bloque del ciclista 1
+C 0x548a hasta el final de los 2 KB
+C 0x548f los cuatro bytes propios del ciclista 1
+C 0x549a y su sprite, en la fila 0x58
+C 0x549f dos parejas de unos
+C 0x54a8 el bloque del ciclista 1
+C 0x54ab copiado entero sobre el del ciclista 2, que va 0x40 mas arriba
+C 0x54b3 y encima, los cuatro bytes propios del ciclista 2
+C 0x54be dos punteros a los patrones
+C 0x54c7 y otro mas
+C 0x54d2 el jugador 1, si no esta en la partida
+C 0x54da arranca ya con un 1 en su primer byte
+C 0x54dd y lo mismo con el 2
+C 0x54ee el ultimo de los sprites
+C 0x54f3 la tabla de las ocho vueltas
+C 0x54f9 y sus dos bytes, en los tres que la resta consume
+C 0x54ff los dos bloques que van descomprimidos a la RAM, no a la VRAM
+C 0x5505 uno a 0xE400
+C 0x550e y el otro a 0xE600
+L 0x5540 despacha_por_prueba las cuatro, con el mismo indice de siempre
+C 0x5540 la prueba en curso
+C 0x5545 y su rutina, de la tabla de detras
+L 0x5550 despacha_por_subescena el nibble de abajo de (0xE09E)
+B 0x5550 Dentro de una prueba hay cuatro subescenas -el rotulo, el intento, el resultado y el cambio de turno- y este es su reparto. Vale para el triple salto y para la pertiga, que son las dos que apuntan aqui en la tabla de 0x5548.
+C 0x5550 la subescena, en el nibble de abajo
+C 0x5555 y su rutina
+L 0x5560 subescena_del_rotulo la marca a batir, y a esperar
+C 0x5560 el record del mundo, parpadeando
+C 0x5563 mientras parpadee, aqui no se sigue
+C 0x5567 a la subescena siguiente
+C 0x556b el bit 1 de la prueba: sin el, el triple salto
+C 0x5571 en la pertiga, el liston que toque
+C 0x5577 y en el triple salto la vuelta manda
+C 0x557a de la octava en adelante
+C 0x5580 la tabla de las ocho marcas del triple salto
+C 0x558a la marca a batir, en los tres bytes que la resta consume
+C 0x5593 sin espera
+C 0x5596 pintada con su punto decimal
+C 0x559f y el rotulo de al lado
+L 0x55a5 espera_y_arranca_el_intento la cuenta atras, y al agotarse la pista
+L 0x55a9 arranca_el_intento la pantalla del intento y su musica
+C 0x55a9 el trozo de pantalla del intento
+C 0x55af la pista 0x0E
+L 0x55b4 subescena_del_intento el fotograma del atleta mientras salta
+B 0x55b4 EL FOTOGRAMA DEL INTENTO. Por orden: el crono, el atleta, sus sprites a la VRAM, la comprobacion de si ha batido la marca y el remate. El intercambio de sprites de 0x57C7 se hace cuando la figura pide que el trozo de delante pase a estar detras, y va atado al bit 0 del contador de fotogramas para que no se note.
+C 0x55b7 mientras quede cuenta atras, no se ha empezado
+C 0x55bb el crono, solo si esta a cero
+C 0x55c2 el atleta
+C 0x55c8 sin intercambio de sprites, de momento
+C 0x55cd el bit 1 de la prueba
+C 0x55d6 en la pertiga, solo en dos de sus estados
+C 0x55de y con la figura entre la cuarta y la quinta
+C 0x55e7 un fotograma si y otro no
+C 0x55ed marcado el intercambio
+C 0x55f2 los sprites, a la VRAM
+C 0x55f9 y si estaba marcado, el intercambio
+C 0x55fc si el intento ya esta juzgado, no se juzga otra vez
+C 0x5607 dos
+C 0x5609 salvo en un estado, que es uno
+C 0x560e la figura cuarta
+C 0x5615 los intentos del jugador de turno
+C 0x561b menos los que se ha gastado
+C 0x5620 y de uno no se baja
+C 0x5622 la marca de ese liston
+C 0x5627 la distancia conseguida
+C 0x562c con 0xFF arriba no hay marca que juzgar
+C 0x562f la marca conseguida
+C 0x5634 contra la que habia
+C 0x5637 y si no llega, el intento no cuenta
+C 0x5639 juzgado
+L 0x563e remata_el_intento reparte segun le quede o no algo al jugador
+C 0x5640 el jugador de turno
+C 0x5645 su primer byte
+C 0x5647 y mientras no este a cero, aqui no se hace nada
+C 0x564d los tres saltos del triple, del jugador 1
+C 0x5652 o los del 2
+C 0x5654 tres
+C 0x5658 la distancia de cada uno
+C 0x565e la que vale 0xFF arriba no se dio
+C 0x5662 los tres bytes de la marca del jugador
+C 0x5666 la suma
+C 0x566b contra la marca a batir
+C 0x566e y si no llega, no califica
+C 0x5674 calificado
+C 0x5679 la marca del jugador y su mejor marca
+C 0x5680 sin marca no hay nada que apuntar
+C 0x5684 0x11 menos, en BCD
+C 0x5689 y por dieciseis: asi es como la cuenta interna se convierte en metros
+C 0x5691 la marca, ya en metros
+L 0x5697 remata_el_intento_de_pertiga el liston superado o no
+C 0x5699 la prueba
+C 0x569e en la 3, la pertiga, uno
+C 0x56a2 y en las demas, dos
+C 0x56a5 con los dos iguales, no hay nada
+C 0x56a8 y por debajo, tampoco
+C 0x56ab la marca de ese liston
+C 0x56b8 contra la que habia
+C 0x56bb y si no llega, no califica
+C 0x56c1 calificado
+C 0x56c3 la marca del jugador y su mejor marca
+C 0x56cb sin marca, nada que apuntar
+C 0x56cd los 5.65 del primer liston
+C 0x56d2 por dos
+C 0x56d4 y a metros
+C 0x56dc cinco centimetros mas
+C 0x56e3 con su acarreo en BCD
+L 0x56ee subescena_del_resultado espera a que el sonido acabe y decide
+C 0x56f1 mientras suene algo, no se sigue
+C 0x56f6 el resultado del intento
+C 0x56fc a esperar ya no
+C 0x5702 la subescena anterior: otro intento
+C 0x5706 la subescena 3, la del cambio
+C 0x570b la cuenta del parpadeo
+C 0x5711 en la pertiga
+C 0x5715 y en el triple salto
+C 0x5718 el guion que parpadea
+C 0x571a el trozo de pantalla del resultado
+L 0x5720 subescena_del_cambio_de_turno hasta que 0x5CA0 diga que ya
+C 0x5723 mientras no termine, aqui no se sale
+C 0x5725 a esperar ya no
+C 0x572b y de vuelta a la subescena 1
+L 0x5730 crono_de_la_carrerilla la cuenta que baja mientras nadie toca el mando
+B 0x5730 El crono de la carrerilla: mientras el jugador de turno no toque ninguna de las teclas de correr, (0xE13B) baja de uno en uno desde 0x3FF, y en tres puntos concretos de esa cuenta -0x47 de diferencia entre ellos- suena un aviso. Al llegar a cero se acabo el intento, y el remate es distinto en cada prueba. El `pop de` del final tira la direccion de retorno: quien llamo ya no vuelve.
+C 0x5730 lo recien pulsado por el jugador de turno
+C 0x5733 si ha tocado algo
+C 0x5737 el crono, entero otra vez
+C 0x573e y si no, un punto menos
+C 0x5747 al llegar a cero, se acabo
+C 0x574b los tres puntos donde suena el aviso
+C 0x5752 y ahi suena
+C 0x5758 el bit 1 de la prueba
+C 0x575d en el triple salto
+C 0x5767 y en la pertiga
+C 0x576d se acabo el intento
+C 0x5775 y quien llamo no vuelve
+L 0x5777 rotulo_del_record_del_mundo la marca y el rotulo, parpadeando
+C 0x5777 el record del mundo de esta prueba
+C 0x577c en la casilla 0x46 de la pantalla
+C 0x577f con su punto decimal
+C 0x5782 y el rotulo WORLD RECORD
+C 0x5785 parpadeando: mientras parpadee devuelve NZ
+L 0x5788 marca_del_liston la altura del liston numero A
+B 0x5788 La altura de un liston de pertiga. Los nueve primeros salen de la tabla, que esta apuntada dos bytes por debajo para que el indice empiece en uno; del decimo en adelante ya no hay tabla y la altura se calcula sumando en BCD sobre la ultima.
+C 0x5789 el numero de liston, apuntado
+C 0x578b del noveno en adelante
+C 0x578f se usa el noveno
+C 0x5791 y se marca que hay que sumar
+C 0x5793 la tabla, dos bytes por debajo
+C 0x579c sin sumar, ya esta
+C 0x57a0 cuantos pasa del noveno
+C 0x57a2 lo que hay que sumarle
+C 0x57a5 sumado en BCD
+L 0x57ab record_del_mundo_de_la_prueba HL a los bytes del record
+C 0x57ab el bit 1 de la prueba
+C 0x57ae el record del triple salto
+C 0x57b2 y el de la pertiga
+L 0x57b6 marcas_del_jugador_de_turno HL la de ahora y BC la mejor
+C 0x57b9 la marca de ahora del jugador 1
+C 0x57bc y su mejor marca
+C 0x57c0 las del jugador 2
+L 0x57c7 intercambia_dos_sprites cambia de orden los sprites 3 y 13
+B 0x57c7 Intercambia los cuatro bytes del sprite 3 con los del 13. En el VDP los sprites se tapan por orden de tabla, asi que este cambio es lo que hace que un trozo del atleta pase de estar delante a estar detras -o al reves- sin mover un pixel.
+C 0x57cf los cuatro bytes de cada uno, uno a uno
+L 0x57d9 vuelca_los_sprites los 72 bytes de 0xE0A0 a la tabla de atributos
+B 0x57d9 La tabla de atributos de sprite se lleva entera en la RAM, en 0xE0A0, y se vuelca de un tiron cada fotograma. Son dieciocho sprites: el atleta se monta pieza a pieza en la RAM y solo entonces se manda al VDP, que es lo que evita verlo a medio montar.
+C 0x57dc la tabla de atributos
+C 0x57df dieciocho sprites de cuatro bytes
+L 0x57e5 guarda_si_ha_superado la resta, y solo se apunta si no hay acarreo
+C 0x57e7 la resta de 24 bits
+C 0x57ec y si se ha pasado, no se apunta nada
+C 0x57ed el resultado, apuntado
+
+
+# ======================================================================
+# COMENTARIOS DE LINEA
+# ======================================================================
+L 0x5800 arranca_la_demostracion monta la prueba y engancha la grabacion
+B 0x5800 LA DEMOSTRACION NO ES CODIGO: ES UNA PARTIDA GRABADA. El cartucho no lleva una inteligencia que juegue, lleva la lista de lo que se pulso y cuanto tiempo, y se la da al mismo motor que juega el jugador. Por eso la demostracion se comporta exactamente como una partida: es una partida. El triple salto y la pertiga tienen cada uno su grabacion -0x5876 y 0x5880-, y el ciclismo y el curling ni eso.
+C 0x5803 sin flags: en la demostracion no hay partida ni turnos
+C 0x5805 borra las 180 variables de la prueba
+C 0x580e y la monta como si fuese de verdad
+C 0x5813 a esperar
+C 0x5819 el bit 0 de la prueba: las pares no tienen grabacion
+C 0x581b la del triple salto
+C 0x5821 y la de la pertiga
+C 0x5824 por donde va la grabacion
+C 0x5827 y los 192 fotogramas del primer tramo
+L 0x582d demostracion_de_la_prueba reparte por prueba, como en una partida
+C 0x5830 en el ciclismo
+C 0x5836 el primer byte de los dos jugadores, a uno
+C 0x583c y el mismo reparto que en una partida
+L 0x583f reproduce_la_grabacion los mandos, sacados de la lista en vez del PSG
+B 0x583f Reproduce la grabacion: cada tramo son los botones que se mantienen pulsados y cuantos fotogramas duran, y el resultado se mete en (0xE009) por la MISMA puerta por la que entran el mando y el teclado de verdad, flancos incluidos, asi que de aqui para abajo nadie nota la diferencia. La derecha, ademas, no se mantiene: se convierte en un toque cada siete fotogramas, que es el machaqueo que un jugador tendria que hacer a mano. El tramo que trae 0xF7 termina la demostracion.
+C 0x5842 las pruebas pares no tienen grabacion
+C 0x5844 lo que le queda al tramo
+C 0x5849 por donde va la grabacion
+C 0x584c y mientras el tramo dure, los mismos botones
+C 0x584e el tramo siguiente
+C 0x584f cuantos fotogramas dura, a la cuenta atras
+C 0x5854 los botones de este tramo
+C 0x5855 el contador del machaqueo
+C 0x5859 el bit 3 es la derecha
+C 0x585d y de mantenerla no sale nada
+C 0x5860 uno de cada siete fotogramas
+C 0x5866 se da por pulsada
+C 0x5869 el tramo de 0xF7 cierra la grabacion
+C 0x586b y si no, a la misma puerta que el mando de verdad
+C 0x5872 se acabo la demostracion
+L 0x5896 despacha_la_pantalla_de_resultados ocho subescenas, y una detras
+B 0x5896 La pantalla de resultados va por partes: cada subescena escribe una linea y espera sesenta fotogramas antes de la siguiente, que es lo que le da el aire de ir apareciendo sola. Salvo la primera, todas apilan 0x5A2F, o sea que al terminar cae en ella.
+C 0x5899 por que subescena va
+C 0x589d la primera no apila nada
+C 0x58a0 y su rutina, de la tabla de detras
+L 0x58b3 pantalla_de_resultados_1 monta la pantalla
+C 0x58b6 la fuente
+C 0x58bc en el ciclismo
+C 0x58c0 hacen falta unos patrones mas
+C 0x58d4 el marco de la pantalla
+C 0x58e3 la primera figura
+C 0x58eb y su estado
+C 0x58ee otro juego de patrones
+C 0x58f7 y las casillas
+C 0x58fd si alguno de los dos ha quedado fuera
+C 0x5900 suena una musica
+C 0x5904 y si no, la otra
+L 0x5909 espera_60_y_sigue sesenta fotogramas hasta la subescena siguiente
+C 0x5909 sesenta fotogramas, o sea un segundo
+L 0x590e sube_la_subescena la siguiente linea de la pantalla
+C 0x590e la subescena siguiente
+L 0x5913 pantalla_de_resultados_2 el nombre de la prueba y el record
+C 0x5913 la prueba en curso
+C 0x5919 la tabla de los cuatro nombres
+C 0x5922 el nombre de la prueba
+C 0x5925 y el rotulo de al lado
+C 0x592b el record, tres bytes en BCD
+C 0x593e las marcas del record, tres bytes por prueba
+C 0x5944 la del record de esta
+C 0x594a el rotulo del jugador 1
+C 0x595e y el del 2, solo si juegan dos
+L 0x5967 pantalla_de_resultados_3 la marca de cada jugador
+C 0x596a sesenta fotogramas antes de esta linea
+C 0x5972 el jugador 1, si esta en la partida
+C 0x597f y el 2
+L 0x5988 pantalla_de_resultados_4 la mejor marca de cada uno
+C 0x598b la espera
+C 0x5993 el jugador 1
+C 0x59a2 y el 2
+L 0x59ad pantalla_de_resultados_5 las puntuaciones y quien queda fuera
+C 0x59b0 la espera
+C 0x59b2 la puntuacion del jugador 1
+C 0x59c5 y la del 2, solo si juegan dos
+C 0x59cd si el jugador 1 no ha calificado
+C 0x59d3 queda fuera de la partida
+C 0x59d9 y el 1 de su rotulo
+C 0x59db PLAYER GAME OVER
+C 0x59e1 con un solo jugador, aqui se acaba
+C 0x59e5 y si el 2 tampoco ha calificado
+C 0x59f1 el 2 de su rotulo
+L 0x59fc pantalla_de_resultados_6 espera al sonido y decide si sigue
+C 0x59fc mientras suene algo, no
+C 0x5a01 y hasta que 0xE08A no se levante, tampoco
+C 0x5a06 si los dos siguen dentro
+C 0x5a0b y la prueba es la ultima de la vuelta
+C 0x5a15 se acabo la pantalla
+L 0x5a1a pantalla_de_resultados_7 el rotulo de despedida
+C 0x5a1a la musica
+C 0x5a1f y el rotulo
+L 0x5a28 pantalla_de_resultados_8 espera al sonido y cierra
+C 0x5a28 mientras suene algo, no se cierra
+L 0x5a2f anima_al_atleta_del_resultado el atleta sigue moviendose entre linea y linea
+C 0x5a2f si los dos siguen dentro, no hay animacion
+C 0x5a34 por que figura va
+C 0x5a39 la pantalla, sin terminar
+C 0x5a3f los sprites, a la VRAM
+C 0x5a46 y mientras la figura cambie, la pantalla espera
+C 0x5a48 cuando deja de cambiar, la pantalla puede seguir
+L 0x5a4e escribe_la_marca_de_la_prueba cada prueba, con su formato
+B 0x5a4e Las cuatro pruebas no miden lo mismo, asi que su resultado tampoco se escribe igual: el ciclismo se va a 0xA78C, el curling son tres bytes de puntos en BCD y el triple salto y la pertiga llevan punto decimal, que es lo que hace 0x7566.
+C 0x5a4e la prueba
+C 0x5a53 el ciclismo, aparte
+C 0x5a56 el curling son puntos
+C 0x5a5b tres bytes en BCD, sin punto
+C 0x5a5f y las otras dos, metros con su punto decimal
+L 0x5a62 alguno_ha_quedado_fuera Z si los dos siguen en la partida
+C 0x5a62 el jugador 1
+C 0x5a65 y el 2
+L 0x5a6a rotulo_de_game_over el rotulo y el numero del jugador
+C 0x5a6c PLAYER GAME OVER, sin cabecera: el destino ya viene en HL
+C 0x5a75 seis casillas mas alla
+C 0x5a7a va el 1 o el 2 del jugador
+
+
+# ======================================================================
+# COMENTARIOS DE LINEA
+# ======================================================================
+L 0x5ca0 sube_el_cartel_del_resultado la figura que sube al acabar el intento
+B 0x5ca0 Al acabar un intento sube por la pantalla una figura de dos sprites, de la fila 0xFE a la 0x78, un pixel cada dos fotogramas. A mitad de camino, en la 0x96, es cuando la marca se suma a la puntuacion: el jugador ve subir el cartel y ve subir los puntos a la vez. En el triple salto ademas se desplaza en diagonal y va soltando un pitido cada cuatro filas.
+C 0x5ca0 un fotograma si y otro no
+C 0x5ca8 la columna
+C 0x5caa una fila mas arriba
+C 0x5cad la mitad del camino
+C 0x5caf ahi es donde se suman los puntos
+C 0x5cb3 los sprites 4 y 5
+C 0x5cb9 cada cuatro filas
+C 0x5cbd dos columnas a la derecha: sube en diagonal
+C 0x5cbf y un pitido
+C 0x5cc4 los desplazamientos de las dos piezas
+C 0x5cd0 y la figura, a la tabla de sprites
+C 0x5cd6 el jugador de turno
+C 0x5cd9 su puntuacion
+C 0x5ce4 mas la marca que acaba de hacer
+C 0x5ce7 con su sonido
+C 0x5ced los sprites 6 y 7
+C 0x5cfd en la pertiga la figura no va en diagonal
+C 0x5d02 y en la fila 0x78 se acabo
+L 0x5d06 pon_la_figura_de_dos_sprites cuatro bytes por sprite, por el puerto
+C 0x5d06 dos sprites
+C 0x5d08 la fila, menos lo que diga la tabla
+C 0x5d0d y la columna
+C 0x5d13 el patron
+C 0x5d14 cuatro mas, que es el patron siguiente de 16x16
+C 0x5d1b y el color
+L 0x5d2f mueve_al_atleta la velocidad, el desplazamiento y todo lo que se pinta
+B 0x5d2f EL FOTOGRAMA DEL ATLETA. Primero la velocidad, luego lo que esa velocidad ha comido de pista, y con eso la pantalla entera: el suelo, los numeros grandes, el marcador y las figuras. (0xE129) es lo que queda de carrerilla -0x2BF en el TRIPLE SALTO y 0x17F en la PERTIGA, leidos de la RAM del emulador: la pertiga tiene la carrerilla mas corta- y baja hasta cero.
+C 0x5d2f si el intento esta congelado, no se mueve nada
+C 0x5d34 la velocidad de este fotograma
+C 0x5d3a por dos y por dos, mas uno: cinco veces
+C 0x5d3e y entre cuatro
+C 0x5d48 pasado el trece
+C 0x5d4c se vuelve al cuarto
+C 0x5d58 lo que queda de pista
+C 0x5d5c menos lo que se acaba de recorrer
+C 0x5d5e y de cero no se baja
+C 0x5d65 si se ha acabado la pista, aqui no se sigue
+C 0x5d6f los digitos grandes de la marca
+C 0x5d78 lo que queda
+C 0x5d7c y de 0x17F sale lo recorrido
+C 0x5d84 entre ocho: de pixeles a casillas
+C 0x5d8e la cabecera del bloque de los digitos
+C 0x5da6 el jugador de turno
+C 0x5dab el liston por el que va, tope nueve
+C 0x5db3 por dieciseis menos uno, o sea por quince
+C 0x5db8 que es lo que ocupa un digito de 5x3 casillas
+C 0x5dbe y ese es su dibujo
+C 0x5dc2 recortado por la izquierda o no
+C 0x5dc9 el rectangulo, ya en la pantalla
+C 0x5dcc y el otro bloque
+L 0x5dd5 pinta_el_suelo las filas de la pista, con el desplazamiento
+C 0x5dd5 por donde va la pista
+C 0x5dd8 dos tramos
+C 0x5ddd el tile del suelo
+C 0x5ddf cada cuatro casillas cambia
+C 0x5de7 el bit 1 de la prueba
+C 0x5dea la fila y el alto en el triple salto
+C 0x5df0 y en la pertiga
+C 0x5df8 tres casillas por fila
+C 0x5e00 el tile del borde
+C 0x5e0b la fila de debajo
+C 0x5e13 el tramo siguiente, media pantalla mas alla
+C 0x5e18 otra vez por donde va la pista
+C 0x5e1b cuatro tramos
+C 0x5e1f el tile
+C 0x5e28 la fila
+C 0x5e35 dos casillas
+C 0x5e3b y el remate
+C 0x5e41 el tramo siguiente
+C 0x5e46 y otra vez
+C 0x5e49 corrido 0xA0
+C 0x5e4c el tile
+C 0x5e59 la fila
+C 0x5e6a doce casillas de un tiron
+C 0x5e6f y el remate
+C 0x5e75 por donde va la pista
+C 0x5e78 los patrones que se copian a la VRAM
+C 0x5e7b y cual de los dos, segun el bit 2 del desplazamiento
+C 0x5e84 su destino en el triple salto
+C 0x5e89 y en la pertiga
+C 0x5e8c veinticuatro bytes, o sea tres tiles
+C 0x5e92 otra vez
+C 0x5e9e otros dos tiles
+C 0x5ea7 lo que queda es solo del triple salto
+C 0x5eab uno de los rectangulos con recorte
+C 0x5eb4 y otro
+C 0x5ebd el bit 7 de 0xE12A
+C 0x5ec3 borra seis casillas
+C 0x5ece y el ultimo rectangulo
+L 0x5ed7 casillas_con_patrones_seguidos B casillas, con el tile subiendo
+B 0x5ed7 Pinta B casillas seguidas con el indice de tile subiendo de uno en uno, y cuando la fila se acaba -los cinco bits de abajo de la direccion a cero- vuelve al principio de la misma fila y coloca otra vez el VDP. Asi es como se dibuja una franja de suelo sin tener que llevar la cuenta por fuera.
+C 0x5edb el tile
+C 0x5edd y el siguiente va pegado
+C 0x5ee1 el final de la fila
+C 0x5ee5 se vuelve al principio de la fila
+C 0x5eea y hay que colocar el VDP otra vez
+L 0x5ef0 setwrt_corto SETWRT dejando el puerto de datos en C
+C 0x5ef3 la BIOS guarda ahi el puerto de datos del VDP
+L 0x5ef8 rectangulo_de_la_pista_baja el rectangulo, corrido por lo recorrido
+C 0x5ef9 la pista del triple salto
+L 0x5efc rectangulo_corrido lo recorrido decide si el dibujo va recortado
+C 0x5efc lo que queda
+C 0x5f01 y de ahi lo recorrido
+C 0x5f06 el rectangulo con recorte
+L 0x5f09 rectangulo_de_la_pista_alta la de la pertiga, que es mas larga
+C 0x5f0a la pista de la pertiga
+L 0x5f0f es_la_pertiga Z en el triple salto, NZ en la pertiga
+B 0x5f0f Las cuatro pruebas se reparten por los dos bits de abajo de (0xE06A), y el triple salto (1) y la pertiga (3) se distinguen solo por el bit 1. Esta rutina de tres instrucciones es la que se llama en TODO el motor compartido para saber en cual de las dos se esta.
+C 0x5f0f la prueba en curso
+C 0x5f12 y el bit 1 las separa
+L 0x5f15 acelera_al_atleta la velocidad, el rozamiento y la zancada
+B 0x5f15 LA CARRERILLA. Cada toque de la tecla suma 0x1000 a la velocidad, que es de 16 bits, y cada fotograma le resta el rozamiento, que sale de la curva de 0x5F7B indexada por el nibble alto de la propia velocidad: cuanto mas rapido va el atleta, mas frena. De ahi que el machaqueo tenga que ser cada vez mas seguido para seguir subiendo, y que la velocidad tenga un techo natural. El otro par de bytes lleva la zancada, que es lo que decide que figura del atleta toca.
+C 0x5f1b con ese bit puesto, ni se acelera ni se frena
+C 0x5f1c la velocidad de ahora
+C 0x5f20 su nibble de mas peso
+C 0x5f27 la curva del rozamiento
+C 0x5f30 por cuatro
+C 0x5f33 y eso es lo que la velocidad pierde en este fotograma
+C 0x5f35 de cero no se baja
+C 0x5f39 lo recien pulsado por el jugador de turno
+C 0x5f3f el bit 3
+C 0x5f43 y cada toque son 0x1000 de velocidad
+C 0x5f46 con tope
+C 0x5f4a la velocidad, apuntada
+C 0x5f4d la zancada
+C 0x5f57 que avanza con la velocidad
+C 0x5f5a y da la vuelta a la media vuelta
+C 0x5f5e por dos
+C 0x5f61 y el nibble de arriba de la zancada
+C 0x5f67 mas dos
+C 0x5f6b los dos, apuntados: de ahi sale la figura que toca
+L 0x5f6f lo_recien_pulsado_por_el_de_turno los flancos del jugador que juega
+C 0x5f6f el bit 7 dice de quien es el turno
+C 0x5f73 los del jugador 1
+C 0x5f77 y los del 2
+
+
+# ======================================================================
+# COMENTARIOS DE LINEA
+# ======================================================================
+L 0x5f8b escribe_la_velocidad el numero de SPEED, en la pantalla
+C 0x5f8b la zancada
+C 0x5f91 por dos
+C 0x5f94 y por seis en total
+C 0x5f96 a decimal, que es como se puede escribir
+C 0x5f9c la parte de arriba
+C 0x5fa4 y la de abajo
+C 0x5fab y el resto del indicador
+L 0x5fb1 escribe_dos_cifras un byte BCD en la pantalla
+C 0x5fb1 el byte, a un sitio donde se le pueda apuntar
+L 0x5fbc casilla_de_la_posicion de coordenadas de pixel a direccion de casilla
+B 0x5fbc Convierte una posicion en pixeles -H la fila, L la columna- en la direccion de su casilla dentro de la tabla de nombres. Son ocho rotaciones repartidas entre A y H, o sea dividir las dos coordenadas entre ocho a la vez, y el 0x38 del final es la base de la tabla.
+C 0x5fbd cuatro rotaciones de la columna
+C 0x5fc1 y de ahi en adelante van entrando los bits de la fila
+C 0x5fca la fila, de 0 a 3
+C 0x5fcc y la tabla de nombres empieza en 0x3800
+L 0x5fd0 prepara_al_atleta la figura, el crono y la velocidad de arranque
+C 0x5fd0 los cuatro bytes de arranque
+C 0x5fde el crono de la carrerilla
+C 0x5fe4 y la velocidad de arranque
+L 0x5fef despacha_el_estado_del_atleta ocho estados, y la velocidad a la vista
+B 0x5fef Los ocho estados del atleta en el triple salto: la carrerilla, los tres saltos, el nulo, el calculo de la marca, el remate y el aterrizaje. Mientras no se llega al sexto, la velocidad se escribe en la pantalla en cada fotograma, que es el numero de SPEED que el jugador mira mientras machaca.
+C 0x5fef el estado del atleta
+C 0x5ff2 del sexto en adelante ya no se ensena la velocidad
+C 0x5ff6 la velocidad
+C 0x5ff9 partida
+C 0x5ffc a la pantalla
+C 0x6004 con un espacio detras, por si antes habia tres cifras
+C 0x6009 el estado
+C 0x600c y su rutina, de la tabla de detras
+L 0x601f estado_de_la_carrerilla corre, y el disparo bate
+B 0x601f LA TABLA DE BATIDA es un tramo concreto de la pista: de 0x12F a 0x1FF de lo que queda. Antes de llegar, el disparo no hace nada; pasada, el intento es nulo. Ahi dentro, el disparo bate y el salto empieza.
+C 0x601f lo que queda de pista
+C 0x6022 pasada la tabla
+C 0x602a nulo
+C 0x6032 y antes de llegar a ella
+C 0x6039 lo recien pulsado por el jugador de turno
+C 0x603c el disparo
+C 0x6040 el atleta corriendo
+C 0x604e el estado siguiente: ya esta en el aire
+C 0x6052 los cuatro bytes de la figura que bate
+C 0x605f la carrerilla, congelada
+C 0x6066 por donde se ha batido, apuntado
+C 0x606d contra el punto justo
+C 0x6071 batir cerca de la raya sube el impulso
+C 0x6080 y suena
+L 0x6085 intento_nulo el estado 4, que es el que no cuenta
+C 0x6088 congelado
+C 0x608d y la cuenta del nulo
+L 0x6093 estado_del_segundo_salto el segundo de los tres
+C 0x609c la pista que suena en el segundo
+C 0x609e y el estado 2
+L 0x60a5 estado_del_tercer_salto el ultimo
+C 0x60ae su pista
+C 0x60b0 y el estado 3
+C 0x60b7 con cinco de impulso mas
+L 0x60bc estado_en_el_aire mientras vuela, hasta que toca el suelo
+C 0x60bf la fisica del salto
+C 0x60c2 segun por donde vaya la figura
+C 0x60cc si aun no ha empezado a caer, nada
+C 0x60d2 la altura
+C 0x60d9 y la figura que toca segun lo bajo que este
+C 0x60e7 el suelo
+C 0x60ed y hasta llegar a el, nada
+C 0x60ef clavado en el suelo
+C 0x60f5 la cuenta del aterrizaje
+C 0x60f8 lo que hay debajo del atleta
+C 0x60ff fuera de la arena, otra figura
+C 0x610a y su patron
+C 0x6113 con su sonido
+L 0x6119 estado_del_nulo la espera, o el salto siguiente
+C 0x611c la cuenta
+C 0x611e con el bit 6 puesto, se acabo
+C 0x6126 pasada la doceava
+C 0x612a lo recien pulsado
+C 0x612d y sin disparo, a esperar
+C 0x6130 el tercer salto
+C 0x6135 o el segundo
+C 0x6138 el estado 7
+L 0x613d limpia_el_salto los contadores del salto, a cero
+L 0x6144 pon_los_contadores_del_salto los tres bytes de la fisica
+L 0x6155 calcula_la_marca de la posicion del atleta a los metros
+B 0x6155 De donde ha caido el atleta salen los metros: se le resta el punto de batida, se pasa por la division de 0x73BF y se le suman los doce metros de la tabla, todo en BCD. Si el salto no llega a nada, la marca se apunta como 0xFF, que es lo que mas abajo se lee como que no hubo.
+C 0x6158 la cuenta
+C 0x615c el remate
+C 0x6162 donde ha caido
+C 0x6166 menos el punto de batida
+C 0x6171 y esa es la distancia
+C 0x617e sin distancia, no hay marca
+C 0x6181 ni pasando de 0xF0
+C 0x618a la distancia, dividida entre 0x18
+C 0x618d doce metros de salida
+C 0x6191 los metros
+C 0x6195 y los centimetros
+C 0x61a3 apuntados
+C 0x61a6 la marca del jugador
+C 0x61b0 lo que hay bajo el atleta
+C 0x61bf contra la marca a batir
+C 0x61c2 y si no llega, nada
+C 0x61c9 calificado
+C 0x61cf sin marca
+C 0x61d3 se apunta el 0xFF de que no hubo
+C 0x61d9 y suena el fallo
+L 0x61e0 estado_del_remate lo que pasa despues de la marca
+C 0x61e3 con marca o sin ella
+C 0x61f0 mientras suene algo, no
+C 0x61f5 la musica del fallo
+C 0x61fc el bit 3 de la cuenta: la figura alterna
+C 0x6205 las figuras del atleta
+C 0x620c la cuenta
+C 0x6210 a esperar ya no
+L 0x6213 gasta_un_intento un intento menos al jugador de turno
+C 0x6218 la cuenta
+C 0x621c mientras suene algo, no
+C 0x6225 la musica de la marca buena
+C 0x622d los contadores del salto
+C 0x6234 el atleta celebrandolo
+C 0x623a el bit 6: si hay partida
+C 0x6241 mientras suene algo, no
+C 0x6246 los tres bytes de la figura del festejo
+C 0x6253 y la marca
+C 0x6259 pasada de 0x18
+C 0x625d se marca el final
+C 0x6262 si el intento estaba juzgado
+C 0x626a un intento mas gastado
+C 0x626b y su sonido
+C 0x6272 el final
+C 0x6278 la subescena del cambio
+C 0x627d la cuenta
+L 0x6286 estado_del_aterrizaje hasta que el atleta se para
+C 0x6289 pasadas las dos
+C 0x628d la fisica
+C 0x6290 si aun no cae, nada
+C 0x629a el suelo
+C 0x62a0 clavado en el
+C 0x62a4 un rebote mas
+C 0x62a5 y su sonido
+L 0x62ad remata_sin_marca al remate directamente
+L 0x62b3 anima_al_atleta_parado la figura mientras no salta
+C 0x62b6 pasadas las dos
+L 0x62bc anima_al_atleta la figura que toque
+C 0x62c0 el estado de la figura
+C 0x62c3 y sus datos
+L 0x62c9 figura_segun_la_altura la que toca segun lo bajo que vaya
+C 0x62cf la altura
+C 0x62d2 alto
+C 0x62d8 y mas bajo
+C 0x62de si aun no cae, ya esta
+C 0x62e3 el suelo
+C 0x62e6 y hasta llegar a el, nada
+C 0x62eb un rebote mas
+L 0x62ef fisica_del_salto_con_figura la fisica, y la figura que le toca
+C 0x62f0 la fisica del salto
+C 0x62f4 segun por donde vaya
+C 0x62fe si aun no cae, nada
+C 0x6304 la altura
+C 0x630b la figura de mas alto
+C 0x6310 y la de mas bajo
+C 0x6311 el suelo
+C 0x6317 y hasta el, nada
+C 0x6319 lo recien pulsado
+C 0x631c el disparo, apuntado para el salto siguiente
+C 0x6325 clavado en el suelo
+C 0x632b con el disparo pulsado, el salto siguiente
+C 0x6330 y sin el, nulo
+C 0x6336 salvo en un estado
+C 0x633d marcado
+L 0x6340 dibuja_al_atleta la figura, de la tabla de 0x6BD9
+L 0x6346 impulso_del_salto el disparo mantiene la subida hasta el tope
+C 0x6349 si ya se solto, no se sube mas
+C 0x6350 el bit 7 dice de quien es el turno
+C 0x6359 el disparo
+C 0x635d el impulso de ahora
+C 0x6360 mas 0x170 por fotograma
+C 0x6364 con tope
+C 0x636e apuntado
+C 0x6379 soltado el disparo, ya no se sube mas
+C 0x636f la fisica
+C 0x6375 y un fotograma mas de figura
+L 0x637d arranca_un_salto la pista, el estado y los contadores a cero
+C 0x637d la pista que suena
+C 0x6381 el estado
+C 0x6387 los cuatro bytes de la figura
+C 0x63a1 y el impulso de arranque
+L 0x63a6 fisica_del_atleta la gravedad, el avance y lo que come de pista
+B 0x63a6 LA FISICA, y solo se hace un fotograma de cada cuatro. La altura cae con una aceleracion que sale de (0xE154) y el avance se descuenta de lo que queda de pista, que es lo mismo que decir que la pantalla se desplaza. En el tercer salto, un toque de la tecla arriba da un empujon mas: el bit 3 se apunta en (0xE179) y se gasta ahi.
+C 0x63a6 lo recien pulsado por el jugador de turno
+C 0x63a9 el bit 3
+C 0x63af apuntado
+C 0x63b5 uno de cada cuatro fotogramas
+C 0x63b8 el atleta
+C 0x63be si aun sube o si ya cae
+C 0x63c8 por dos
+C 0x63c9 y a la altura
+C 0x63cf el avance, por dos
+C 0x63d5 en el sexto estado ya no se avanza
+C 0x63d9 el tercer salto
+C 0x63de con el empujon apuntado
+C 0x63e5 se gasta
+C 0x63e9 y el avance sube un punto
+C 0x63ef lo recorrido
+C 0x63f7 en el tercer salto y sin haber tocado el techo
+C 0x63ff se sube
+C 0x6401 hasta 0xD0
+C 0x6406 y ahi se para
+C 0x640a la columna del atleta
+C 0x640e menos lo avanzado
+C 0x6413 y si se sale, el sprite se esconde
+C 0x6417 lo que queda de pista
+C 0x641b menos lo avanzado
+C 0x6420 y a repintar el suelo
+L 0x6423 que_hay_bajo_el_atleta lee la casilla de debajo, en la VRAM
+B 0x6423 Para saber si el atleta ha caido en la arena no hay tabla ninguna: se mira la pantalla. Se coge su posicion, se le suman 32 pixeles -o sea cuatro filas de casillas-, se calcula la casilla y se LEE de la VRAM. El tile 9 es la arena, y con eso basta.
+C 0x6426 cuatro filas mas abajo
+C 0x642a la casilla
+C 0x642d y lo que hay pintado en ella
+C 0x6430 el tile 9 es la arena
+L 0x6433 marca_intento_nulo el estado 4, y la cuenta a cero
+C 0x6433 el estado del nulo
+L 0x643f parte_y_devuelve la division, con el resto en los flags
+C 0x6441 a decimal
+C 0x6445 Z si el resultado cabe en un byte
+L 0x6449 pasa_al_remate el estado 6 y la altura del suelo
+C 0x644c el estado del remate
+C 0x644f el atleta, en el suelo
+C 0x6451 y la cuenta
+L 0x6457 marcas_del_intento_del_de_turno DE a las tres del jugador que juega
+C 0x645a las del jugador 1
+C 0x645f y las del 2
+
+
+# ======================================================================
+# COMENTARIOS DE LINEA
+# ======================================================================
+L 0x649b estado_de_la_carrerilla_con_pertiga corre con la pertiga en la mano
+C 0x649b lo que queda de pista
+C 0x649e el punto de plantar
+C 0x64a6 lo recien pulsado por el jugador de turno
+C 0x64a9 el disparo planta la pertiga
+C 0x64b0 y al final de la pista
+C 0x64b8 se acabo el intento
+C 0x64bb la figura de la pertiga
+C 0x64c0 segun por donde vaya el atleta
+C 0x64cf el primer sprite: la punta de la pertiga
+C 0x64dd el dibujo de la pertiga
+C 0x64e0 y las piezas del atleta
+L 0x64e3 monta_al_atleta_y_su_sombra las piezas, y las cuatro que van detras
+C 0x64e4 las piezas del atleta
+C 0x64eb tres piezas mas
+L 0x64f2 monta_cuatro_piezas_mas donde y de que tabla
+C 0x64f2 donde se dejan
+C 0x64f5 dos bytes por entrada
+C 0x64f6 la tabla de figuras
+C 0x64ff y cuatro piezas
+L 0x6504 planta_la_pertiga congela la carrerilla y pasa al estado siguiente
+C 0x6504 el bit 7 congela y marca
+C 0x650c el estado siguiente
+L 0x650d borra_la_pertiga el dibujo, quitado de la pantalla
+L 0x6513 estado_de_la_pertiga_plantada la pertiga se dobla
+C 0x6516 un fotograma mas
+C 0x651a pasada la segunda fase
+C 0x6520 uno de cada ocho fotogramas
+C 0x6524 la fase siguiente
+C 0x6528 la fase de antes, apuntada
+L 0x6529 dibuja_al_atleta_con_pertiga el atleta y su pertiga, juntos
+C 0x6529 los dos dibujos
+C 0x6530 la fila y la columna
+C 0x6534 por cuatro, mas 0x84: el patron que toca
+C 0x653a apuntado
+C 0x6542 la fase
+C 0x6544 lo que queda de pista
+C 0x6547 la ventana buena para plantar: entre 0x0B y 0x20
+C 0x6557 plantada donde se debe
+C 0x655b si se planto bien
+C 0x6562 uno de cada ocho fotogramas
+L 0x6566 se_acabo_el_intento el intento, por terminado
+C 0x6568 marcado
+C 0x6570 y la cuenta
+C 0x6574 lo que queda de pista
+C 0x6577 pasada de 0x0A
+C 0x657b y por debajo de 0x19
+C 0x657f si la velocidad no llega a 0x30
+C 0x6585 no hay salto
+C 0x658b la pista, clavada en 0x0A
+C 0x6590 la fase siguiente
+C 0x6594 el estado siguiente
+C 0x6597 congelado
+C 0x659a y suena
+L 0x659f estado_de_la_subida el atleta sube colgado de la pertiga
+C 0x65a2 antes de la cuarta fase no se puede soltar
+C 0x65a9 el bit 7 dice de quien es el turno
+C 0x65b3 y el disparo suelta la pertiga
+C 0x65bb un fotograma mas
+C 0x65bd uno de cada ocho
+C 0x65c3 pasada la catorceava
+C 0x65c7 la fase siguiente
+C 0x65ca la de antes, apuntada
+C 0x65cb hasta la cuarta, el dibujo es el mismo de antes
+C 0x65d0 los dos dibujos
+C 0x65e4 los sprites de la pertiga, escondidos
+C 0x65eb y las piezas, una detras de otra
+C 0x65f1 con su color
+C 0x65f6 hasta el cero que cierra
+L 0x65f9 dibuja_al_atleta_de_pertiga la tabla de figuras de la pertiga
+L 0x65fc dibuja_la_figura la fila, la columna y la figura que toque
+B 0x65fc La puerta comun de todo lo que se dibuja del atleta: (0xE131) es la fila, (0xE132) la columna y (0xE134) cual de las figuras toca. La tabla se le pasa en HL, asi que la misma rutina sirve para el atleta corriendo, saltando, celebrandolo o cayendose. El 0x1800 es la tabla de patrones de sprite: los patrones del atleta se rehacen ENTEROS en cada fotograma.
+C 0x65fc la fila y la columna
+C 0x6608 la figura que toca
+C 0x6609 dos bytes por entrada
+C 0x6610 los patrones de sprite
+C 0x661a siete piezas
+L 0x661f suelta_la_pertiga arriba del todo, y a volar
+C 0x661f la pista
+C 0x662b la caida
+C 0x6634 el estado siguiente
+C 0x6638 en las fases de la 7 a la 11
+C 0x6645 el atleta arranca mas alto
+C 0x664b cuatro de impulso
+C 0x664d salvo en la treceava
+C 0x6653 la tabla del impulso
+C 0x665d la velocidad de la caida
+C 0x6661 y el avance, con tope
+C 0x666b la cuenta de la figura
+C 0x666d y suena
+L 0x6672 estado_del_vuelo el atleta pasa -o no- por encima del liston
+C 0x6672 la caida
+C 0x6675 si ya ha tocado el liston
+C 0x667b lo recien pulsado
+C 0x6685 los toques, apuntados
+C 0x6688 si aun no se ha juzgado
+C 0x668e la altura del liston
+C 0x6697 y si pasa a menos de tres, lo tira
+C 0x669c otra vez la altura del liston
+C 0x66a2 la ventana de por encima
+C 0x66a9 y ahi es donde el salto se da por bueno
+C 0x66ad si aun no cae, nada
+C 0x66b3 la columna
+C 0x66ba mas alla de 0x88
+C 0x66bc y por encima de 0x68
+C 0x66c1 la figura de la caida
+C 0x66ca clavado
+C 0x66cb se acabo el intento
+C 0x66ce y las seis piezas de la colchoneta
+C 0x66db por debajo de 0x68
+C 0x66e0 la otra figura de caida
+C 0x66ea clavado
+C 0x66f2 juzgado
+C 0x66f6 y suena una cosa u otra segun haya tirado el liston o no
+C 0x6706 el estado siguiente
+C 0x670a con el liston tirado
+C 0x6710 se acabo el intento
+C 0x671a y si no, un liston mas superado
+L 0x671d tira_el_liston el liston cae, y con el el intento
+C 0x671d el ruido del liston
+C 0x6723 juzgado
+C 0x6726 el dibujo del liston cayendo
+C 0x672c la altura a la que estaba
+C 0x6731 y ahi cae, con su sprite
+C 0x6741 el estado 6
+C 0x6743 y el rotulo de tres filas por cinco
+C 0x674f el VDP, en la fila
+C 0x6752 los cinco tiles
+C 0x6759 y la fila de abajo
+C 0x6760 la fase
+C 0x6763 y su dibujo
+L 0x6766 dibujo_de_la_tabla la entrada A de la tabla que venga en HL
+L 0x676e interprete_de_dibujo_relativo el cuarto interprete, con saltos cortos
+B 0x676e EL CUARTO INTERPRETE DE ROTULOS, y no es el de 0x4415. La cabecera es igual -el destino de VRAM en una word- pero los tiles salen por `out (c),a` en vez de por la BIOS, y su 0xFE no trae una direccion nueva: trae UN SOLO BYTE que se suma a la posicion. Salta en relativo, que sale mas barato cuando el dibujo va por filas y solo hay que bajar una. Sus quince guiones estan en 0x7150..0x732E.
+C 0x676e el destino, de la cabecera
+C 0x6773 el VDP, colocado
+C 0x677a el tile
+C 0x677d 0xFF termina
+C 0x677f 0xFE trae un salto
+C 0x6782 y lo demas va a la casilla
+C 0x6786 cuanto saltar
+C 0x6788 sumado a la posicion
+C 0x678b y a colocar el VDP otra vez
+L 0x678d marca_el_liston_tocado el liston, dado por tirado
+L 0x6793 estado_del_remate_de_pertiga lo que pasa despues del salto
+C 0x6796 la cuenta
+C 0x67a2 y si se agoto
+C 0x67a9 el atleta celebrandolo
+C 0x67af pasadas las tres
+C 0x67b5 la caida
+C 0x67bb la altura
+C 0x67be y la figura que le toca
+C 0x67ca si aun no cae, nada
+C 0x67d0 el suelo
+C 0x67d5 clavado
+C 0x67da los contadores
+C 0x67de la figura
+C 0x67e5 en el fotograma 0x8E
+C 0x67ea nueve sprites, escondidos
+C 0x67f5 el atleta, dibujado
+C 0x67fb mientras suene algo, no
+C 0x6800 tres toques
+C 0x6807 y se acabo
+C 0x680f si el intento estaba juzgado
+C 0x6814 un intento gastado
+C 0x6815 y su sonido
+C 0x681a el final
+C 0x6820 la subescena del cambio
+C 0x6826 y a esperar ya no
+C 0x682c si al jugador no le queda nada
+C 0x6831 mientras suene algo, no
+C 0x683a la musica del salto bueno
+C 0x6841 y el atleta, en el suelo
+L 0x6847 contadores_de_la_pertiga los tres bytes de la fisica de la pertiga
+L 0x684e estado_de_la_caida el atleta que se ha caido
+C 0x6851 la cuenta
+C 0x6856 un fotograma menos
+C 0x685f y en el suelo
+C 0x6862 si el intento ya termino
+C 0x6868 el sprite del liston
+C 0x6871 escondido
+C 0x6876 con el liston tirado
+C 0x687e el bit 3: la figura alterna
+C 0x6887 el atleta
+C 0x688e la cuenta
+C 0x6895 la otra cuenta
+C 0x689c y a esperar ya no
+C 0x68a2 la cuenta
+C 0x68a7 y su sonido
+L 0x68ac esconde_a_todo_el_atleta los doce primeros sprites, fuera
+C 0x68b5 un 0xC3 en la Y y no se ve
+C 0x68b9 si la pertiga no llego a plantarse
+C 0x68bd nada mas que borrarla
+C 0x68c0 y si se planto, su dibujo
+L 0x68c9 estado_del_aterrizaje_de_pertiga hasta que el atleta se para
+C 0x68c9 la caida
+C 0x68cf si aun no se ha juzgado
+C 0x68d5 y aun no cae, nada
+C 0x68de por debajo de 0x6C
+C 0x68e3 la figura de la caida
+C 0x68e8 y en el suelo
+C 0x68ed clavado
+C 0x68f5 juzgado
+C 0x68fa con su sonido
+C 0x6901 se acabo el intento
+C 0x6907 y el liston, por tocado
+L 0x690c altura_del_liston la fila del liston por el que va el jugador
+C 0x690f el liston por el que va, tope nueve
+C 0x6918 la tabla de sus alturas
+C 0x691f y la posicion del atleta
+L 0x6923 termina_el_intento congela, estado 5 y un intento menos
+C 0x6925 congelado
+C 0x692a el estado del calculo
+C 0x692f la cuenta
+C 0x6935 y un intento menos
+L 0x6939 dibuja_la_pertiga_y_el_atleta los dos dibujos, en su orden
+C 0x693b la pertiga
+C 0x6943 y encima el atleta
+L 0x694b prepara_el_dibujo_del_atleta la fila, la columna y el VDP colocado
+C 0x694b la fila
+C 0x6950 y la columna, a la otra pareja de registros
+C 0x6956 la figura
+C 0x695f en dos de ellas, una fila mas arriba
+C 0x6961 y en otras dos
+C 0x696a suena el paso
+C 0x6974 los patrones de sprite
+C 0x697d el puerto de datos, a mano
+L 0x6980 figura_de_la_tabla_6b00 la entrada A, y dos piezas
+C 0x6980 la tabla
+C 0x6983 dos bytes por entrada
+C 0x698a dos piezas
+L 0x698c monta_piezas_desde_e0c4 las piezas, a partir del sprite 9
+C 0x698c donde se dejan
+L 0x6992 monta_las_piezas_del_atleta cinco bytes por pieza, y el 0x80 cierra
+B 0x6992 EL MOTOR DE FIGURAS. Un atleta no es un sprite: son de dos a siete sprites de 16x16, y cada pieza son cinco bytes -la fila y la columna relativas, el puntero al bloque de patron y el color-, con un 0x80 que cierra la figura. Y el patron no esta puesto de antes: el bloque se DESCOMPRIME a la VRAM aqui mismo, con el mismo RLE de siempre, o sea que los 2 KB de patrones de sprite se rehacen enteros en cada fotograma. Por eso el atleta puede tener cientos de posturas sin que quepan a la vez en la VRAM.
+C 0x6996 la fila relativa
+C 0x6997 el 0x80 cierra la figura
+C 0x699b mas la fila de la figura
+C 0x699f la columna relativa
+C 0x69a1 mas la de la figura
+C 0x69a9 el puntero al bloque de patron
+C 0x69af el mandato
+C 0x69b1 el 0 cierra el bloque
+C 0x69b5 sin el bit 7 es una repeticion
+C 0x69bb los que van tal cual
+C 0x69bd a la VRAM, sin pasar por la BIOS
+C 0x69c3 el byte que se repite
+C 0x69ce y el color de la pieza
+C 0x69d3 hasta que se acaban las piezas
+L 0x69d8 esconde_a_sprites los que digan, con un 0xC3 en la Y
+L 0x69e2 caida_del_atleta la gravedad de la pertiga, con su figura
+C 0x69e2 lo recien pulsado
+C 0x69e5 el bit 3, apuntado
+C 0x69f1 la cuenta de la figura
+C 0x69f7 en el cuarto estado va mas deprisa
+C 0x6a00 el atleta
+C 0x6a06 un fotograma mas de figura
+C 0x6a0a y la figura que le toca a cada tramo
+C 0x6a1a apuntada
+C 0x6a25 la aceleracion
+C 0x6a2a por dos
+C 0x6a2b y a la fila
+C 0x6a39 el empujon apuntado
+C 0x6a40 sube un punto
+C 0x6a44 el avance
+C 0x6a48 a la columna
+C 0x6a49 pasada de 0x80
+C 0x6a4e las seis piezas de una colchoneta
+C 0x6a53 o las de la otra
+C 0x6a5f y en el cuarto estado la aceleracion es otra
+L 0x6a64 pasos_del_atleta la zancada, y de ahi la columna y el paso
+C 0x6a67 la velocidad
+C 0x6a70 multiplicada
+C 0x6a77 apuntada
+C 0x6a7c un paso mas
+C 0x6a83 entre dos
+
+
+# ======================================================================
+# COMENTARIOS DE LINEA
+# ======================================================================
+L 0x732e seno la tabla de 0x7346, indexada por el angulo
+B 0x732e SENO Y COSENO. La tabla de 0x7346 son noventa valores de 0 a 0xFF que crecen cada vez mas despacio: es el seno de 0 a 89 grados, con 0xFF por uno. El 30 vale 0x80, el 45 vale 0xB5 y el 60 vale 0xDD -128, 181 y 221 sobre 255, contra los 127,5, 180,3 y 220,8 de verdad-. Y el coseno no necesita tabla propia: es la misma leida por 90 menos el angulo, que es lo que hace la de abajo.
+C 0x732f la tabla del seno
+C 0x7335 el seno del angulo
+L 0x7338 coseno la misma tabla, leida al reves
+C 0x7339 noventa menos el angulo
+C 0x733b y en positivo: eso es el coseno
+L 0x73a0 multiplica_8x8 HL = H por E
+C 0x73a3 ocho bits
+C 0x73a5 el resultado, por dos
+C 0x73a8 y con el bit puesto, se suma
+L 0x73ac multiplica_8x16 HL:C = A por BC
+C 0x73b2 ocho bits
+C 0x73b7 el multiplicador, bit a bit
+L 0x73bf divide_16 DE entre BC, con el resto en HL
+C 0x73c3 dieciseis bits
+C 0x73c6 el dividendo, por dos, y el bit de arriba al resto
+C 0x73cc contra el divisor
+C 0x73ce si no cabe, se devuelve
+C 0x73d0 y si cabe, un bit al cociente
+L 0x73d9 monta_la_pista_del_salto la pantalla del triple salto y la pertiga
+B 0x73d9 Monta la pantalla que comparten el triple salto y la pertiga. En medio pasa lo mas curioso del cartucho: se descomprime un dibujo a la RAM y ALLI se desplaza cuatro pixeles a mano, rotando los bits de doce tiles seguidos, y las dos versiones -la del sitio y la corrida- se suben a la VRAM. Es lo que permite que la pista se mueva de medio tile en medio tile en vez de a saltos de ocho pixeles.
+C 0x73d9 los patrones de la pista
+C 0x73e2 su color
+C 0x73eb y otro juego mas
+C 0x73f4 dos tercios nada mas
+C 0x740a las casillas
+C 0x7410 el dibujo que se desplaza, descomprimido a la RAM
+C 0x7419 dos bloques
+C 0x741b el primero
+C 0x741f ocho filas de patron
+C 0x7421 cuatro pixeles
+C 0x7423 los bits salen por arriba del ultimo tile
+C 0x7427 y van entrando en el anterior
+C 0x744f hasta el primero: doce tiles seguidos corridos a la vez
+C 0x7453 cuatro veces, o sea cuatro pixeles
+C 0x7455 la fila siguiente del patron
+C 0x745a y el bloque siguiente
+C 0x7462 las dos versiones, a la VRAM
+C 0x746e su color
+C 0x7479 otro bloque a la RAM
+C 0x7494 el liston, en el triple salto no
+C 0x7499 y en la pertiga si
+C 0x749f el marcador de intentos
+C 0x74a2 si la prueba ya iba empezada
+C 0x74a7 se recupera donde estaba
+C 0x74ab y si no, el record del mundo
+C 0x74ae y el suelo
+L 0x74b1 descomprime_a_la_ram el RLE, pero a la RAM y no al VDP
+B 0x74b1 El TERCER descompresor: el mismo formato RLE de siempre, pero escribiendo en la RAM en vez de en el VDP, y con el destino en los dos primeros bytes del bloque. Solo lo usa el bloque de 0x7818, que va a parar a 0xE320.
+C 0x74b1 el destino, de la cabecera
+L 0x74b5 descomprime_a_la_ram_en el mismo, con el destino ya en DE
+C 0x74b6 el mandato, sin su bit 7
+C 0x74b8 el 0 cierra
+C 0x74bc si no ha cambiado es que no tenia el bit: repeticion
+C 0x74c1 y si lo tenia, se copian tal cual
+C 0x74c6 el byte que se repite
+L 0x74ce marcador_de_intentos las marcas y los intentos que quedan
+C 0x74ce en el triple salto es otro
+C 0x74d3 el liston por el que va el jugador
+C 0x74e5 su altura
+C 0x74f2 escrita con su punto decimal
+L 0x74f5 pinta_los_intentos_que_quedan un tile por cada uno
+C 0x74f8 de tres
+C 0x74fa menos los gastados
+C 0x74fb sin ninguno, no hay nada que pintar
+C 0x74fd el tile de la marquita
+C 0x7502 y una casilla si y otra no
+L 0x750a pinta_las_tres_marcas las tres del jugador de turno
+C 0x750a las del jugador 1
+C 0x7512 o las del 2
+C 0x7514 tres
+C 0x751c la marca
+C 0x751e sin marca, nada
+C 0x7520 la de 0xFF es la que no se dio
+C 0x7523 y la buena se escribe con su punto
+C 0x7528 el guion del intento fallado
+C 0x7530 si esto no es la escena 5
+C 0x7537 si el ultimo salto valio
+C 0x753d y si ya sono
+C 0x7543 la musica del fallo
+C 0x7548 el rotulo
+C 0x7555 y que no suene otra vez
+C 0x7559 la marca de arriba
+C 0x755c y una fila mas arriba
+L 0x7566 escribe_una_marca dos cifras, el punto y dos cifras
+B 0x7566 Asi se escribe una marca: dos cifras en BCD, los dos tiles del punto decimal -el 0x1E y el 0x1F, que juntos hacen la coma- y otras dos cifras. Es lo que convierte los 0x1789 de la tabla en el 17.89 que se lee en la pantalla.
+C 0x7566 las dos primeras cifras
+C 0x756d el punto decimal, en dos tiles
+C 0x7578 y las dos ultimas
+
+
+# ======================================================================
+# COMENTARIOS DE LINEA
+# ======================================================================
+L 0x68a2 cierra_el_intento_de_pertiga la cuenta, el sonido y los sprites
+
+
+# ======================================================================
+# COMENTARIOS DE LINEA
+# ======================================================================
+L 0x9105 despacha_la_escena_del_ciclismo ocho, por (0xE120)
+B 0x9105 El ciclismo lleva su propio reparto de escenas, ocho, en (0xE120), y dentro de la carrera hay otro de seis en (0xE122) que ademas elige de que ciclista se habla: el bloque del jugador 1 esta en 0xE0A0 y el del 2 en 0xE0E0, sesenta y cuatro bytes cada uno, y todo el motor los recorre con IX.
+C 0x9105 mientras el reparto de dentro este a cero
+C 0x910b la escena del ciclismo
+C 0x910e y su rutina
+L 0x9121 despacha_al_ciclista_de_turno el mismo reparto, con IX en su bloque
+C 0x9122 de que ciclista se habla
+C 0x9126 el bloque del jugador 1
+C 0x912c y el del 2
+C 0x9132 su rutina, de la tabla de detras
+L 0x9141 espera_a_que_calle mientras suene la pista 0x60, nada
+C 0x9144 la pista del adelantamiento
+C 0x9147 mientras suene, aqui no se sigue
+C 0x914b 120 fotogramas
+L 0x914f corre_y_espera la carrera sigue mientras corre la cuenta
+C 0x915d en el fotograma justo
+C 0x9164 se borran ocho bytes de atributos
+C 0x9168 la cuenta
+L 0x916a espera_y_sube_el_sub_reparto la cuenta atras, y el paso siguiente
+C 0x916a la cuenta que traiga A
+C 0x9170 y un paso mas
+L 0x9172 rotulo_del_ciclista el nombre del que va a hablar
+C 0x9172 la casilla del jugador 1
+C 0x917b y la del 2
+C 0x9187 sesenta fotogramas
+L 0x918b espera_al_tercer_toque hasta que el ciclista lleva tres
+C 0x9190 los toques que lleva
+C 0x9193 con tres
+C 0x9197 se le da por fuera
+C 0x919b y 180 fotogramas
+L 0x919f corre_el_ciclista_solo un ciclista, en su tramo
+C 0x919f su estado
+C 0x91a5 el ciclista
+C 0x91ad y su indicador
+C 0x91b3 la cuenta
+L 0x91b8 rearranca_la_carrera los dos siguen, y se vuelve a montar
+C 0x91b8 los dos primeros bytes de los dos ciclistas
+C 0x91bf si alguno esta fuera, se acabo
+C 0x91c2 lo que hay que salvar antes de rehacerlo todo
+C 0x91d4 los dos ciclistas, montados otra vez
+C 0x91da y lo salvado, devuelto a su sitio
+C 0x91e9 la pantalla
+C 0x91ed el reparto de dentro, a cero
+C 0x91f3 y la escena 2
+L 0x91f9 escena_0_del_ciclismo monta la pantalla de la carrera
+C 0x91f9 las casillas
+C 0x91ff los patrones
+C 0x9208 la pantalla entera
+C 0x920b y el marcador
+L 0x9210 escribe_el_record_del_ciclismo el tiempo de 0xE055
+C 0x9213 los tres bytes del record
+L 0x9219 parpadea_world_record el rotulo, parpadeando
+L 0x921f escena_1_del_ciclismo el record del mundo, parpadeando
+C 0x9228 mientras parpadee, no se sigue
+C 0x9229 el rotulo de al lado
+C 0x922f y el tiempo a batir
+C 0x9235 128 fotogramas
+L 0x9239 rotulo_de_la_prueba el nombre, en la primera fila
+L 0x9244 escena_2_del_ciclismo la salida, con su cuenta atras
+B 0x9244 LA SALIDA. Aqui no hay semaforo ninguno: los cuatro sprites de 0x3B50 son la FLECHA que senala a tu ciclista -parpadeando, azul en la ventana de arriba y roja en la de abajo- y, cuando la cuenta atras se agota, la PISTOLA que la sustituye. El fogonazo, que es una nube con la palabra GO dentro, va en los dos sprites de 0x3B58 y lo pone la escena siguiente. Los tres bloques estan en 0x965D, 0x9665 y 0x966D, y las cuatro ranuras las borra de golpe 0x9413 cuando se acaba el arranque.
+C 0x9247 los dos sprites de la flecha que senala a tu ciclista
+C 0x924a uno de cada dieciseis fotogramas
+C 0x9255 apagado
+C 0x925c y encendido
+C 0x9268 mientras suene algo, no se sale
+C 0x926d la pista de la salida
+C 0x9278 y la flecha deja sitio a la pistola de salida
+C 0x9284 y 120 fotogramas
+L 0x9286 espera_y_sube_la_escena la cuenta atras, y la escena siguiente
+L 0x9289 sube_la_escena_del_ciclismo
+L 0x928e escena_3_del_ciclismo la carrera arranca
+C 0x928e los mandos de la salida
+C 0x9294 la cuenta
+C 0x929c el fogonazo del disparo, la nube con el GO
+C 0x92a4 la pista de la carrera
+C 0x92a9 y treinta fotogramas de arranque
+L 0x92ae escena_4_del_ciclismo la carrera
+C 0x92ae la pista que suena
+C 0x92b9 si no es la de la carrera, se pone
+C 0x92bc el fotograma de los dos ciclistas
+C 0x92cb los dos han llegado
+C 0x92d3 y si no, se sigue corriendo
+L 0x92d9 escena_5_del_ciclismo la meta y los tiempos
+C 0x92e2 el tiempo del jugador 1
+C 0x92ed y el del 2
+C 0x92f7 el ciclista 1 contra el record
+C 0x92fe y el 2
+C 0x9305 si alguno lo ha batido
+C 0x930b suena
+C 0x9310 y se va a la escena 7
+L 0x931a escena_6_del_ciclismo el remate
+L 0x931e suma_los_puntos_de_la_carrera treinta por cabeza, en BCD
+C 0x9321 si no hay a quien sumarle, nada
+C 0x9326 al jugador 1 o al 2
+C 0x932b treinta puntos
+C 0x932e en BCD
+C 0x9332 con su acarreo
+L 0x9334 cierra_el_ciclismo borra las marcas de los que han acabado
+C 0x9334 la pista del final
+C 0x933a a esperar ya no
+C 0x933f el ciclista 1
+C 0x9343 si esta fuera, no se le borra nada
+C 0x9355 y lo mismo con el 2
+L 0x936b fotograma_de_la_carrera los dos ciclistas y el indicador
+C 0x9377 la cuenta
+L 0x937c escena_7_del_ciclismo el record batido
+C 0x9382 mientras suene la pista 0xB2
+C 0x9388 el rotulo
+L 0x9390 mueve_a_los_dos_ciclistas el crono y los dos indicadores
+C 0x9393 el ciclista 1
+C 0x939a y el 2
+L 0x93a1 sube_el_crono una centesima mas, y suena cada segundo
+C 0x93a1 si los dos han llegado, el crono se para
+C 0x93a9 una centesima mas
+C 0x93ae y cada cien
+C 0x93b1 vuelta a empezar
+C 0x93b3 con su pitido
+L 0x93b8 tiempo_del_ciclista los tres bytes de su crono
+L 0x93c2 compara_con_el_record el tiempo contra el de 0xE053
+C 0x93c5 el record del mundo del ciclismo
+C 0x93c8 la resta
+C 0x93cb si no llega, no hay record
+C 0x93d1 el tiempo del ciclista
+C 0x93d4 puesto de record
+C 0x93db y marcado
+L 0x93df monta_la_carrera todo lo que se ve en la pantalla del ciclismo
+C 0x93f4 el rotulo de arriba
+C 0x9400 y el de abajo
+L 0x9409 fotograma_del_ciclismo lo que corre en cada fotograma de carrera
+B 0x9409 El fotograma de la carrera: veinte llamadas seguidas, cada una a lo suyo -los dos ciclistas, los rivales, el publico, el marcador, la pista, los sprites-. No hay bucle ninguno, esta escrito una detras de otra, que es lo que hace que el orden de lo que se pinta sea siempre el mismo.
+C 0x9409 la cuenta del adelantamiento
+C 0x9413 y al agotarse, se borran las cuatro ranuras: las dos pistolas y los dos GO
+L 0x941e monta_el_fotograma_de_carrera las veinte piezas, en su orden
+C 0x942a si no toca la de 0xA449
+L 0x9455 juzga_la_llegada quien llega primero y quien no llega
+C 0x9455 el ciclista 1
+C 0x945c y el 2
+C 0x9463 los dos han llegado
+C 0x946b si ninguno, nada
+C 0x946d empatados
+C 0x9474 y si no, el primero
+C 0x9478 con dos ya esta
+L 0x9484 mira_si_ha_llegado la meta esta en 0x190A
+C 0x9484 si ya paso por meta
+C 0x948a por donde va
+C 0x9490 la meta
+C 0x9495 y antes de ella, nada
+C 0x9496 marcado como llegado
+C 0x9499 su tiempo
+C 0x949c contra el limite
+C 0x949f pasado el limite, fuera
+C 0x94a6 si ya estaba fuera
+C 0x94b2 el jugador 1 o el 2
+C 0x94bd fuera de la carrera
+L 0x94c0 estado_del_ciclista_tras_la_meta lo que hace despues de llegar
+C 0x94c0 el crono
+C 0x94c3 llegado del todo
+C 0x94c7 el otro ciclista
+C 0x94d3 su estado
+C 0x94ed el estado siguiente
+C 0x94f4 segun por donde vaya el otro
+C 0x9502 el primer byte del otro
+C 0x950b si el otro esta fuera, nada
+C 0x951b y el 0x20
+L 0x9524 espera_a_que_llegue_el_otro hasta 0x1A2A
+C 0x9528 si el otro ya llego
+C 0x9533 por donde va
+C 0x9539 y el punto de espera
+L 0x9541 indicador_del_ciclista el color que parpadea
+C 0x9541 el estado, a la espera
+C 0x9545 el jugador 1 o el 2
+C 0x9552 si sigue en carrera, no parpadea
+C 0x9559 un color
+C 0x955d o el otro
+C 0x9563 el bit 4 del contador de fotogramas
+C 0x9567 y ahi cambia: eso es el parpadeo
+C 0x956a el nibble de abajo se respeta
+L 0x9574 pedalea machacar es lo que mueve la bicicleta
+B 0x9574 El pedaleo: cada toque de la tecla -el bit 3 de lo recien pulsado- cuenta uno, y al tercero el ciclista arranca. Los dos jugadores se leen aqui uno detras de otro, cada uno con su bloque en IX y con su byte de flancos.
+C 0x9574 el ciclista 1
+C 0x9578 y sus flancos
+C 0x9580 el ciclista 2
+C 0x9589 si esta fuera, no pedalea
+C 0x958e el bit 3
+C 0x9591 si el reparto de dentro no esta a cero, no
+C 0x9597 marcado
+C 0x959a un toque mas
+C 0x959d con su sonido
+C 0x95a5 y al tercero
+L 0x95a8 arranca_al_ciclista el ciclista, en marcha
+L 0x95ac indicador_del_que_va_delante los tres tiles del rotulo
+C 0x95b1 el color del jugador 1
+C 0x95b6 o el del 2
+C 0x95bc el color, al sprite
+C 0x95c0 y sus tres bytes
+L 0x95c9 quien_va_delante C dice cual, y el acarreo que no hay
+C 0x95c9 los dos, comparados
+C 0x95d0 empatados, no hay quien vaya delante
+C 0x95d5 el bloque del que va delante
+C 0x95dd y si esta fuera, tampoco cuenta
+
+
+# ======================================================================
+# COMENTARIOS DE LINEA
+# ======================================================================
+L 0x95f1 monta_los_dos_marcos las tres filas de cada ventana
+C 0x95f1 la ventana del jugador 1
+C 0x95f7 y la del 2
+C 0x95fa tres filas
+C 0x9600 siete casillas cada una
+C 0x9608 y la fila de abajo
+L 0x9626 rotulos_de_los_dos_ciclistas 1UP y 2UP, o el de fuera
+C 0x9629 el ciclista 1
+C 0x962e su rotulo
+C 0x9631 y el 2
+C 0x963c si esta fuera, uno
+C 0x9640 y si no, 1UP
+C 0x9645 o 2UP
+L 0x964d rotulo_en_las_dos_ventanas el mismo guion, en las dos
+C 0x9651 la mascara que pinta
+C 0x9657 y la otra ventana
+L 0x96c8 desplaza_las_dos_ventanas el circuito, una columna
+B 0x96c8 EL CIRCUITO DEL CICLISMO SE DESPLAZA EN LA RAM. Cada jugador tiene su ventana -nueve filas de treinta y dos casillas- guardada en la RAM, en 0xE140 y en 0xE260, y para moverla no se toca el VDP: se copian las nueve filas UNA POSICION ATRAS con nueve `ldir`, se rellena la columna que queda libre y solo entonces se vuelca todo. Asi el circuito avanza sin que se vea romperse, y las dos ventanas pueden ir a velocidades distintas.
+C 0x96c8 la ventana del jugador 1
+C 0x96d2 y la del 2
+C 0x96d9 si el ciclista esta parado, no se desplaza
+C 0x96de una columna mas
+C 0x96df de siete en siete
+C 0x96e5 apuntada
+C 0x96ea la fila del circuito
+C 0x96eb con tope
+C 0x96f6 la ventana del jugador 1
+C 0x96fb o la del 2
+C 0x9702 nueve filas
+C 0x9705 treinta y una casillas
+C 0x9708 corridas una posicion
+C 0x970a y la fila siguiente
+C 0x9711 el nibble del mapa que toca
+C 0x971a por sesenta y cuatro
+C 0x9726 el bloque de dibujos de 0xE400
+C 0x972e la ultima columna de la ventana 1
+C 0x9733 o la de la 2
+C 0x9736 nueve casillas
+C 0x973c la fila siguiente del dibujo
+C 0x9741 y la de la ventana
+C 0x9746 la distancia que le queda al ciclista 1
+C 0x974f o la del 2
+C 0x9751 lo que se le descuenta
+C 0x9755 tres bytes
+C 0x9758 restado en BCD
+C 0x975f y si se pasa de cero
+C 0x9762 se queda en cero
+L 0x9769 escribe_las_dos_distancias las dos, sin mirar el fotograma
+L 0x976e escribe_una_distancia una si y otra no, para no gastar el fotograma
+C 0x976e el bit 0 del contador de fotogramas
+C 0x9774 la del jugador 1
+C 0x977c y la del 2
+C 0x9782 dos bytes, o sea cuatro cifras
+L 0x9787 fila_del_circuito_o_llano por encima de 0x70 el circuito se acaba
+C 0x9787 pasada la fila 0x70
+C 0x978b tres menos
+L 0x9791 nibble_del_mapa media casilla por byte
+B 0x9791 El mapa del circuito va empaquetado a CUATRO BITS por casilla: dos casillas en cada byte. El indice se parte por la mitad para dar con el byte, y el acarreo de esa division dice cual de los dos nibbles toca -el de abajo si es impar, el de arriba si es par-. Son 57 bytes por prueba, o sea 114 casillas de circuito.
+C 0x9794 entre dos: dos casillas por byte
+C 0x9797 el byte
+C 0x979c con el acarreo, el nibble de abajo
+C 0x979e y sin el, el de arriba
+L 0x97a5 datos_de_la_prueba el bloque de RAM que le toca a esta prueba
+C 0x97a6 los cuatro punteros
+C 0x97aa la prueba en curso
+C 0x97ae por dos: son punteros
+L 0x97c2 monta_las_dos_ventanas el mismo dibujo, a las dos
+C 0x97c2 la del jugador 1
+C 0x97c8 y la del 2
+L 0x9819 vuelca_una_ventana una si y otra no
+L 0x981f vuelca_la_ventana_de_arriba
+L 0x9827 vuelca_las_dos_ventanas
+C 0x9819 el bit 0 del contador de fotogramas
+C 0x981f la ventana de arriba
+C 0x982a y la de abajo
+L 0x9830 vuelca_288_bytes de la RAM a la VRAM, sin pasar por la BIOS
+B 0x9830 Vuelca una ventana entera -288 bytes, nueve filas de treinta y dos- de la RAM a la VRAM por el puerto de datos. Se hace en dos vueltas porque en un `djnz` no caben mas de 256: la primera con B a cero, que son los 256, y la segunda con los 32 que faltan.
+C 0x9837 con B a cero son 256
+C 0x983c y los 32 que faltan
+C 0x983f a la VRAM, de un byte por vuelta
+
+
+# ======================================================================
+# COMENTARIOS DE LINEA
+# ======================================================================
+L 0x98e1 mueve_a_los_dos el ciclista de cada jugador, con el otro en IY
+B 0x98e1 Los dos ciclistas se mueven aqui, uno detras de otro, y cada uno con el OTRO en IY: eso es lo que les permite mirarse -adelantar, dejarse ir, no chocar- sin tener que buscar nada. El bloque del jugador 1 esta en 0xE0A0 y el del 2 en 0xE0E0.
+C 0x98e1 el ciclista 1, con el 2 de rival
+C 0x98f2 y el 2, con el 1
+C 0x9906 el color de uno
+C 0x9912 y el del otro
+C 0x991b la mascara entera
+C 0x9920 o solo el nibble de abajo
+L 0x9926 avanza_a_los_ciclistas la posicion, con su parte fraccionaria
+C 0x9926 el ciclista 1
+C 0x9930 y el 2
+C 0x9937 si ya ha llegado, no se avanza
+C 0x993d ni se cambia de figura
+C 0x9942 la posicion, mas la velocidad
+C 0x994a con su acarreo
+C 0x9952 y si ha cambiado de casilla
+C 0x995f se apunta
+C 0x9963 la figura de la bicicleta
+C 0x9967 de tres en tres
+C 0x996a y vuelta a empezar: eso es el pedaleo
+L 0x9978 velocidad_a_avance la velocidad por ocho
+C 0x997d por dos, por dos y por dos
+C 0x9980 y ese es el avance por fotograma
+L 0x9987 barra_de_los_dos las dos barras de velocidad
+L 0x998a barra_del_jugador_1
+L 0x9996 barra_de_uno_u_otro una si y otra no, para repartir el fotograma
+L 0x999c barra_del_jugador_2
+C 0x9996 el bit 0 del contador de fotogramas
+C 0x99a6 la velocidad
+C 0x99a8 pintada como barra
+C 0x99ab la fila de debajo
+C 0x99b0 entre dos
+C 0x99b6 la cifra del jugador 1
+C 0x99bf o la del 2
+C 0x99c2 dos bytes, o sea cuatro cifras
+L 0x99cd barra_de_velocidad la barra, en llenos y vacios
+B 0x99cd La barra de velocidad son quince casillas: el nibble de arriba del valor dice cuantas van llenas -el tile 8- y las que faltan hasta quince se pintan vacias, con el tile 7. No hay dibujo ninguno de la barra: es una cuenta y dos tiles.
+C 0x99ce el nibble de arriba
+C 0x99d5 y las que faltan hasta quince
+L 0x99dd a_decimal_8 el byte de L, en BCD
+L 0x99df a_decimal HL en binario, DE en BCD
+B 0x99df BINARIO A DECIMAL, y no dividiendo: dieciseis vueltas de `add hl,hl` sacando el bit de arriba, y del otro lado un `adc a,a / daa` por cada byte del resultado, que es lo que corrige a decimal en cada paso. Es la unica manera de escribir un numero de 16 bits sin tener que dividir por diez cinco veces.
+C 0x99e4 el bit de mas peso, al acarreo
+C 0x99e6 y a la cuenta, por dos
+C 0x99e7 corregido a decimal
+C 0x99ed dieciseis bits
+L 0x99f0 pinta_llenos_y_vacios B casillas del tile 8 y C del 7
+C 0x99f3 el tile lleno
+C 0x99f9 y el vacio
+C 0x99fb con cero, nada
+C 0x99ff a la casilla
+L 0x9a06 acelera_al_ciclista la velocidad, el rozamiento y el pedaleo
+B 0x9a06 La velocidad del ciclista funciona igual que la carrerilla del atleta: cada toque suma 0x1000 y la curva de 0x9AD7 -indexada por el nibble alto de la propia velocidad- se resta cada fotograma. Lo que cambia es quien pedalea: si el ciclista sigue en carrera lo hace el jugador, y si esta fuera lo hace la rutina de abajo.
+C 0x9a09 si ya llego, no acelera
+C 0x9a15 donde vive su velocidad, apuntado
+C 0x9a1b si esta fuera, la lleva la maquina
+C 0x9a2b y en el tramo de espera, a velocidad fija
+C 0x9a2f la velocidad de ahora
+C 0x9a37 su nibble de mas peso
+C 0x9a39 la curva del rozamiento
+C 0x9a42 por cuatro
+C 0x9a45 y eso es lo que pierde
+C 0x9a49 de cero no se baja
+C 0x9a4b si va a rueda, tampoco pedalea
+C 0x9a55 lo recien pulsado del jugador 1
+C 0x9a5a o del 2
+C 0x9a5d el bit 3
+C 0x9a64 y cada toque son 0x1000, con tope
+C 0x9a6d la velocidad, apuntada
+L 0x9a71 pedalea_la_maquina el ciclista que ya no lleva nadie
+B 0x9a71 Cuando un ciclista queda fuera de la carrera lo sigue moviendo el cartucho, y de dos maneras distintas: en partida se pega al otro -mira su posicion y su velocidad en IY y sube o baja de diez en diez para no descolgarse ni pasarse-, y en la DEMOSTRACION, donde no hay grabacion que reproducir, tira de azar puro: `ld a,r` toma el registro de refresco de la memoria, que a estas alturas del fotograma vale cualquier cosa, y con su bit 0 decide si acelera o si frena.
+C 0x9a71 solo mientras la carrera esta en marcha
+C 0x9a77 a rueda no se toca nada
+C 0x9a80 el bit 6: si hay partida
+C 0x9a85 y sin partida es la demostracion
+C 0x9a87 uno de cada ocho fotogramas
+C 0x9a8a su velocidad
+C 0x9a92 su carril contra el del otro
+C 0x9a9b si van juntos, no se toca
+C 0x9aa1 y su posicion contra la del otro
+C 0x9aa9 diez mas de velocidad
+C 0x9aac con tope
+C 0x9ab0 la posicion del otro
+C 0x9ab8 diez menos
+C 0x9abb con suelo
+C 0x9ac1 uno de cada ocho fotogramas
+C 0x9ac8 muy rapido, se frena
+C 0x9acc muy lento, se acelera
+C 0x9ad0 y en medio, el registro de refresco hace de dado
+C 0x9ad3 cara: acelerar; cruz: frenar
+L 0x9ae7 sprites_de_los_dos_ciclistas el color de cada uno
+C 0x9ae7 el color del ciclista 1
+C 0x9af3 y el del 2
+L 0x9afc sprite_de_la_rueda la pieza de atras, si cabe en la ventana
+C 0x9aff el ciclista 1
+C 0x9b04 o el 2
+C 0x9b09 la fila, a multiplo de ocho
+C 0x9b0c con su color
+C 0x9b12 la posicion del ciclista
+C 0x9b1a contra la de la pieza
+C 0x9b1f centrada en la ventana
+C 0x9b25 fuera por arriba
+C 0x9b29 o por abajo
+C 0x9b2d y dentro, su columna
+C 0x9b31 fuera de la ventana, escondida
+L 0x9b36 color_del_ciclista la fila y el color, en un byte
+C 0x9b39 la fila, a multiplo de ocho
+C 0x9b3b y el color en los tres bits de abajo
+L 0x9b40 choque_entre_ciclistas si se pisan, uno se va al suelo
+C 0x9b4a el carril de uno
+C 0x9b4d contra el del otro
+C 0x9b50 dentro de nueve
+C 0x9b54 y si no se tocan, nada
+C 0x9b56 quien va delante
+C 0x9b5d se cambian
+C 0x9b60 el que se lleva el golpe
+C 0x9b67 marcado
+C 0x9b6b si no habia golpe pendiente, nada
+C 0x9b76 la velocidad del que cayo
+C 0x9b7b por debajo de 0x40, ya esta parado
+C 0x9b7e y si no, se le frena
+L 0x9c9d monta_las_ruedas_en_ocho_pasos los dos dibujos, cada uno en ocho
+B 0x9c9d LOS OCHO DESPLAZAMIENTOS. Un ciclista esta repartido entre las dos capas de la pantalla, y esto monta la que va en CASILLAS: la rueda de atras con su sillin, un dibujo de 16x16 -dos por dos tiles- que se pone en la tabla de patrones a partir del 0xA0 y del 0xD0. El ciclista propiamente dicho, el cuadro, el manillar y la rueda de delante son SPRITES, y no pasan por aqui. Para que la rueda pueda moverse al pixel y no de ocho en ocho, se generan OCHO copias del mismo dibujo, cada una corrida un pixel mas que la anterior, rotando los bits en la RAM y subiendo cada version a la VRAM; de paso sale la mascara, porque el `ld a,0ffh` y su `rra` van dejando unos por donde el dibujo ya no llega. Los dos dibujos son las dos FASES del giro: en una misma pantalla se ve un ciclista con los tiles 0xA0 y otro con los 0xD0. Medido sobre la VRAM del emulador con tools/capas.py, que separa las dos capas.
+C 0x9c9d el primer dibujo de la rueda
+C 0x9ca7 y el segundo
+C 0x9cb1 dieciseis bloques
+C 0x9cbb el mismo relleno en los tres tercios
+C 0x9cbf y el bloque siguiente
+L 0x9cc7 ocho_copias_corridas de una a ocho posiciones
+C 0x9cc7 donde va la primera
+C 0x9cca sin corrimiento: la copia tal cual
+C 0x9ccc el buffer de la RAM
+C 0x9cd0 dieciseis filas
+C 0x9cd6 la fila izquierda del dibujo
+C 0x9cd9 y la derecha
+C 0x9cde la mascara, entera
+C 0x9ce1 en la primera copia no se rota nada
+C 0x9ce4 un uno por delante
+C 0x9ce5 y las dos mitades y la mascara, corridas a la vez
+C 0x9cec la fila izquierda
+C 0x9cef la derecha
+C 0x9cf2 y la mascara
+C 0x9cfa donde va la copia siguiente
+C 0x9d07 esta copia, a los tres tercios
+C 0x9d0d una posicion mas
+C 0x9d0f hasta las ocho
+
+
+# ======================================================================
+# COMENTARIOS DE LINEA
+# ======================================================================
+L 0xa232 vuelca_los_sprites_de_arriba una ventana si y otra no
+L 0xa238 vuelca_los_sprites_de_la_ventana_1
+L 0xa251 vuelca_los_sprites_de_las_dos
+C 0xa232 el bit 0 del contador de fotogramas
+C 0xa238 la tabla de atributos
+C 0xa23e el ciclista 1
+C 0xa248 y el 2
+C 0xa254 los sprites de la ventana de abajo
+C 0xa25a en ella el ciclista 2 va primero
+L 0xa26b sprites_de_un_ciclista tres piezas y sus remates, por el puerto
+B 0xa26b Los sprites del ciclista salen por el puerto de datos uno detras de otro, sin tabla en RAM que valga: de la postura -el nibble de arriba del byte de estado- salen tres desplazamientos de la tabla de 0xA2FC, y de ahi las filas y los patrones de cada pieza. Los `push hl / pop hl` que hay mas abajo no mueven nada: son once tiempos de espera para que el VDP no se atragante.
+C 0xa26c el puerto de datos, a mano
+C 0xa271 el byte de estado
+C 0xa275 su nibble de arriba: la postura
+C 0xa27e por tres: tres piezas por postura
+C 0xa281 la tabla de las posturas
+C 0xa287 tres piezas
+C 0xa28f los desplazamientos de una postura
+C 0xa294 o los de la otra
+C 0xa2a1 el nibble de arriba
+C 0xa2a3 unos patrones
+C 0xa2a8 u otros
+C 0xa2b9 el bit 4 de la posicion
+C 0xa2bf cambia el patron de la rueda
+L 0xa2c5 saca_un_sprite los cuatro bytes de un sprite, con sus esperas
+C 0xa2c6 la fila
+C 0xa2c7 el 0xFF esconde el sprite
+C 0xa2ca y 0xDF es una fila que no existe
+C 0xa2cf mas la fila de la figura
+C 0xa2d1 a la VRAM
+C 0xa2d5 la columna
+C 0xa2d7 mas la de la figura
+C 0xa2db el patron
+C 0xa2e0 y el color
+L 0xa31a devuelve_el_fondo_de_los_dos lo que habia debajo de los ciclistas
+L 0xa323 devuelve_el_fondo las casillas guardadas, a su sitio
+B 0xa31a El ciclista se pinta METIENDO su tile en la ventana de la RAM, asi que antes hay que guardar lo que habia debajo para poder devolverlo en el fotograma siguiente. El puntero de las casillas tapadas se guarda con ellas, de modo que devolverlas es leer el puntero y soltar los bytes.
+C 0xa323 donde estaban
+C 0xa32a la fila de abajo
+L 0xa334 pinta_a_los_rivales el ciclista de cada ventana, en la del otro
+C 0xa334 el ciclista 1, en la ventana del 2
+C 0xa33e y el 2 en la del 1
+C 0xa348 fuera de la ventana, nada
+C 0xa34a diez y seis filas mas arriba
+C 0xa34e y de cero no sube
+C 0xa350 la casilla
+C 0xa358 el hueco del fondo del jugador 1
+C 0xa35d o el del 2
+L 0xa36c pinta_a_los_dos_ciclistas cada uno en su ventana
+C 0xa36c el ciclista 1
+C 0xa370 en su ventana
+C 0xa379 y el 2 en la suya
+L 0xa383 pinta_un_ciclista dos casillas, con el fondo guardado
+C 0xa383 los tiles de un carril
+C 0xa385 el bit 4 de la posicion
+C 0xa38b y los del otro
+C 0xa38e donde se apunta lo tapado del jugador 1
+C 0xa397 o del 2
+C 0xa39a el puntero, guardado con el fondo
+C 0xa3a4 y la fila de abajo
+L 0xa3a9 pon_tile_y_guarda_el_fondo el tile entra, lo que habia sale
+C 0xa3a9 lo que habia
+C 0xa3aa el tile del ciclista
+C 0xa3ab y el de al lado
+C 0xa3ae lo tapado, apuntado
+L 0xa3b4 pinta_a_cada_uno_en_la_otra_ventana el rival, con cuatro casillas
+C 0xa3b4 el ciclista 1
+C 0xa3b8 con la posicion del 2
+C 0xa3be en la ventana del 2
+C 0xa3c4 y al reves
+C 0xa3d4 fuera de la ventana, nada
+C 0xa3d6 diez y seis filas mas arriba
+C 0xa3dc la casilla
+C 0xa3e2 el hueco del jugador 1
+C 0xa3e8 o el del 2
+C 0xa3f6 la fila de abajo
+L 0xa407 tile_del_rival el tile que le toca segun el desplazamiento
+C 0xa408 los tiles de un carril
+C 0xa40e o los del otro
+C 0xa410 los tres bits de abajo son el desplazamiento fino
+C 0xa415 por seis: seis tiles por posicion
+C 0xa419 y ese es el primer tile
+L 0xa41c posicion_del_ciclista_en_la_ventana con acarreo si no cabe
+C 0xa41c la columna
+C 0xa41f y la fila
+C 0xa423 la 0xD0 es la de fuera
+L 0xa427 casilla_de_la_ventana la direccion dentro del buffer de RAM
+C 0xa427 la fila, a multiplo de ocho
+C 0xa42f por cuatro: treinta y dos casillas por fila
+C 0xa431 desde el buffer
+C 0xa432 y el hueco del ciclista
+L 0xa437 casilla_de_la_ventana_desde_hl la misma, con la posicion en HL
+C 0xa438 la columna, a multiplo de ocho
+C 0xa43e y la fila, por treinta y dos
+L 0xa449 mira_el_terreno el circuito bajo cada ciclista
+C 0xa449 el ciclista 1
+C 0xa44d con sus flancos
+C 0xa456 y el 2 con los suyos
+C 0xa45a si ya llego, nada
+C 0xa45f ni si esta cayendose
+C 0xa464 lo que hay bajo el ciclista
+C 0xa46d si esta fuera de carrera
+C 0xa477 se le mira aparte
+C 0xa47b el disparo
+C 0xa47e y segun el terreno, lo que toque
+L 0xa494 chispas_del_choque los cuatro bytes del sprite de la chispa
+C 0xa494 la del ciclista 1
+C 0xa49e y la del 2
+C 0xa4a5 sin chispa que pintar, nada
+C 0xa4ae una menos
+C 0xa4b6 y al acabarse, fuera de la pantalla
+C 0xa4b8 la fila
+C 0xa4be espera de once tiempos: el VDP necesita respirar entre bytes
+C 0xa4c8 al final la chispa cambia de color
+L 0xa4d6 terreno_bajo_el_ciclista lo que hace segun por donde va
+C 0xa4d7 los flancos, gastados
+C 0xa4d8 antes de la cuarta casilla, nada
+C 0xa4de el terreno
+C 0xa4e2 el 0 es llano
+C 0xa4e5 el 1
+C 0xa4e8 el 2
+C 0xa4ea y los de mas alla
+L 0xa4f2 mira_dos_casillas_mas_alla lo que viene despues
+C 0xa4f5 dos casillas mas alla
+C 0xa4fa si eso tampoco es llano, se mira aquello
+C 0xa4fd si va a rueda, nada
+C 0xa502 el ciclista 1
+C 0xa50b o el 2
+C 0xa50e ocho bytes mas atras
+C 0xa514 contra la casilla por la que va
+C 0xa519 a menos de dos, nada
+C 0xa51f y en el mismo carril
+C 0xa524 el bit 6: si hay partida
+
+
+# ======================================================================
+# COMENTARIOS DE LINEA
+# ======================================================================
+L 0xa528 avisa_del_obstaculo el disparo, dado por pulsado
+C 0xa52b uno de cada 128 fotogramas
+L 0xa530 mira_si_esta_cerca a menos de 0x20 de distancia
+C 0xa532 el carril de uno
+C 0xa535 contra el del otro
+C 0xa538 en positivo
+C 0xa53a y solo a 0x20 justos
+L 0xa53d pulsa_el_disparo el bit 4, como si lo hubiese pulsado el jugador
+C 0xa53d el bit 4 es el disparo
+L 0xa541 esquiva_si_esta_libre
+C 0xa541 si el carril esta ocupado, no
+L 0xa546 esquiva_si_esta_ocupado
+C 0xa546 si esta libre, no
+L 0xa54b decide_a_que_carril el terreno de cada lado
+C 0xa54b lo que hay al lado
+C 0xa550 pegado al borde no se puede
+C 0xa553 al carril de la derecha
+C 0xa557 y si esta libre, nada
+L 0xa559 cambia_de_carril_1 hacia un lado
+L 0xa55b apunta_el_cambio_de_carril el estado y su figura
+C 0xa55b el estado del cambio
+C 0xa55f y su figura
+L 0xa563 decide_a_la_izquierda
+C 0xa563 si el lado esta libre, nada
+C 0xa566 y si el otro esta ocupado, tampoco
+L 0xa56b decide_a_la_derecha
+C 0xa56b si el lado esta ocupado, no
+C 0xa56f y pegado al borde tampoco
+L 0xa574 cambia_de_carril_a_los_dos el cambio en marcha de cada ciclista
+C 0xa574 el ciclista 1
+C 0xa57b y el 2
+C 0xa57f su carril
+C 0xa582 y el estado del cambio
+L 0xa58e cambia_hacia_la_izquierda dos pixeles por fotograma
+C 0xa58e pegado al borde no se sigue
+C 0xa592 si hay algo delante, se para
+C 0xa59a dos pixeles
+C 0xa59f y hasta llegar al borde, se sigue
+L 0xa5a0 termina_el_cambio_de_carril el estado, a parado
+C 0xa5a0 el cambio, terminado
+C 0xa5a4 y el carril de antes, apuntado
+L 0xa5b0 cambia_hacia_la_derecha dos pixeles por fotograma
+C 0xa5b1 pegado al borde no se sigue
+C 0xa5b5 si hay algo delante, se para
+C 0xa5bd dos pixeles
+C 0xa5c2 y hasta el borde
+L 0xa5c7 hay_algo_a_la_izquierda ocho pixeles hacia alla
+L 0xa5cb hay_algo_a_la_derecha
+L 0xa5cd hay_algo_en_esa_casilla mira el buffer de la ventana
+C 0xa5cd la ventana del jugador 1
+C 0xa5d6 o la del 2
+C 0xa5d9 el carril, mas el desplazamiento
+C 0xa5de fuera de la pista, se acabo
+C 0xa5e1 la fila de delante
+C 0xa5e7 y tres casillas mas aca
+L 0xa5ec mira_si_choca_de_frente lo que hay delante de cada ciclista
+C 0xa5ec el ciclista 1
+C 0xa5f6 y el 2
+C 0xa5fd su carril
+C 0xa605 fuera de la pista, es choque
+C 0xa607 la fila de delante
+C 0xa60e y a partir de 0x10, una casilla mas
+C 0xa616 si no hay nada, se sigue
+C 0xa61b si ya estaba chocando, no se repite
+C 0xa61e el golpe
+C 0xa623 con sus chispas
+C 0xa627 chocando
+C 0xa62c y sin velocidad ninguna
+C 0xa639 sin nada delante, no hay choque
+L 0xa63e que_hay_en_esa_casilla Z si es uno de los cuatro tiles que paran
+B 0xa63e Los cuatro tiles con los que un ciclista choca: el 0x0E, el 0x5E, el 0x69 y el 0x90. No hay tabla de obstaculos ni lista de nada: la pista dibujada ES el mapa de choques, y se pregunta leyendo la casilla del buffer.
+L 0xa641 es_un_tile_que_para
+C 0xa641 lo que hay en la casilla
+C 0xa642 el borde
+C 0xa645 la valla
+C 0xa648 el bache
+C 0xa64b y el ultimo de los cuatro
+L 0xa64e choque_entre_los_dos si se pisan, se apartan
+C 0xa652 el carril del ciclista 1
+C 0xa655 contra el del 2
+C 0xa65b a mas de 0x2E, ni se rozan
+C 0xa65e la posicion de uno
+C 0xa665 contra la del otro
+C 0xa66e a mas de 0x40, tampoco
+C 0xa679 y a menos de ocho estan encima
+C 0xa67f el que va detras
+C 0xa687 si no esta cambiando de carril, nada
+C 0xa68d hacia el lado que le toque
+C 0xa693 el cambio, en marcha
+C 0xa697 con su figura
+C 0xa69c y marcado para el fotograma
+L 0xa6a0 se_pisan_de_verdad los dos, encima
+C 0xa6a3 si alguno esta chocando ya
+C 0xa6a8 los sprites de uno
+C 0xa6ab y los del otro
+C 0xa6af el que tiene que ir delante
+C 0xa6cb los dos, chocando
+L 0xa6d5 quien_va_delante_de_los_dos el de mas abajo tapa al otro
+C 0xa6d6 uno contra el otro
+C 0xa6db se cambian
+C 0xa6de y por debajo de 0x58 manda el otro
+L 0xa6e4 sprites_del_terreno los dos de la valla, uno por fotograma
+C 0xa6e4 los sprites de la ventana 1
+C 0xa6eb el bit 0 del contador de fotogramas
+C 0xa6f1 y una ventana si y otra no
+C 0xa6f8 el puerto de datos, a mano
+C 0xa6fc el terreno bajo el ciclista
+C 0xa702 el color de fondo
+C 0xa707 siete casillas mas adelante
+C 0xa70f los dos patrones que le tocan
+C 0xa716 unos
+C 0xa721 u otros
+C 0xa727 el bit 4 del contador: parpadean
+C 0xa72b el color de un jugador
+C 0xa733 o el del otro
+C 0xa735 con su aviso sonoro
+C 0xa73a la columna
+C 0xa73c dos sprites
+C 0xa740 espera de once tiempos entre byte y byte
+
+
+# ======================================================================
+# COMENTARIOS DE LINEA
+# ======================================================================
+L 0xa761 crono_de_los_dos_ciclistas el tiempo de cada uno, si sigue corriendo
+C 0xa765 el crono del ciclista 1
+C 0xa76c si no ha llegado, sigue contando
+C 0xa76f y el del 2
+L 0xa77d escribe_los_dos_tiempos el de cada ventana
+C 0xa780 el del jugador 1
+C 0xa786 y el del 2
+L 0xa78c escribe_un_tiempo minutos, segundos y centesimas
+B 0xa78c Un tiempo son tres bytes en BCD y se escribe de arriba abajo: los minutos en una cifra, y despues dos parejas de cifras con el tile 0x58 -los dos puntos- delante de la primera y el 0x59 -la coma- delante de la segunda. Los digitos son los tiles del 0x10 al 0x19, asi que basta sumarle 0x10 al nibble.
+C 0xa78f los minutos
+C 0xa791 una sola cifra
+C 0xa793 los digitos empiezan en el tile 0x10
+C 0xa799 dos grupos: segundos y centesimas
+C 0xa79b los dos puntos
+C 0xa79e el separador
+C 0xa7a1 el nibble de arriba
+C 0xa7ae y el de abajo
+C 0xa7b8 la coma, para el grupo siguiente
+B 0xa7bd El crono del ciclismo no cuenta de una en una: sube NUEVE centesimas por fotograma, que a cincuenta fotogramas por segundo son cuatro segundos y medio por cada segundo real. Al llegar a los cuatro minutos el ciclista queda fuera de carrera, y ademas se le descuentan puntos de siete en siete mientras corre.
+C 0xa7c0 si ya esta parado, no cuenta
+C 0xa7c3 nueve centesimas
+C 0xa7c5 en BCD
+C 0xa7c9 con su acarreo a los segundos
+C 0xa7cd sesenta segundos
+C 0xa7d1 vuelta a cero
+C 0xa7d4 y un minuto mas
+C 0xa7d6 a los cuatro minutos
+C 0xa7df el crono, parado
+C 0xa7e3 el ciclista, fuera
+C 0xa7e9 con su sonido
+C 0xa7f7 la puntuacion del jugador 1
+C 0xa800 o la del 2
+C 0xa803 siete puntos
+C 0xa805 tres bytes
+L 0xa807 resta_puntos en BCD, y de cero no baja
+C 0xa808 restados en BCD
+C 0xa80b sin acarreo, ya esta
+C 0xa80d y del segundo byte en adelante, uno
+C 0xa812 pasado de cero, se queda en cero
+L 0xa819 rotulos_de_los_dos_jugadores 1UP y 2UP, o el de fuera
+C 0xa819 el ciclista 1
+C 0xa825 y el 2
+C 0xa82f si esta fuera, el otro rotulo
+L 0xa839 monta_el_curling la pista de hielo y las tres piedras
+B 0xa839 EL CURLING SE MONTA ENTERO AQUI, y es la prueba mas cargada de las cuatro: media pantalla de estado en 0xE180, otra media en 0xE200, las tres piedras con su posicion y su color, la casa dibujada y el dibujo de 0xAFEF descomprimido a la RAM. Los intentos que le quedan al jugador deciden cuantas piedras se tiran.
+C 0xa839 la primera vez que se entra
+C 0xa83f la pantalla de arriba
+C 0xa845 128 bytes de estado
+C 0xa852 y 256 mas
+C 0xa864 la primera piedra
+C 0xa86a la segunda
+C 0xa87a y la tercera
+C 0xa885 los ocho bytes de arranque
+C 0xa890 los intentos del jugador de turno
+C 0xa894 uno menos
+C 0xa895 con el tercero
+C 0xa89b la subescena de arranque
+C 0xa8a3 y la cuenta
+C 0xa8a8 el dibujo grande, a la RAM
+C 0xa8b1 las casillas
+C 0xa8bd la casa
+L 0xa8d8 monta_la_primera_vez lo que solo se hace al entrar en el curling
+C 0xa8d8 la franja de arriba
+C 0xa8db el marco
+C 0xa8e1 256 bytes de estado
+C 0xa8f4 las ocho marcas del curling
+C 0xa8f7 la de esta vuelta
+C 0xa8fa y en los tres bytes que la resta consume
+L 0xa92e despacha_la_subescena_del_curling trece, por (0xE230)
+C 0xa92e la subescena
+C 0xa931 y su rutina, de la tabla de detras
+L 0xa94e curling_1_el_record el record del mundo y la marca a batir
+C 0xa951 solo la primera vuelta
+C 0xa954 el rotulo parpadeando
+C 0xa957 el record del mundo del curling
+C 0xa962 y mientras parpadee, no se sigue
+C 0xa966 el nombre de la prueba
+C 0xa969 y la marca a batir
+L 0xa976 espera_120_y_sigue
+L 0xa978 espera_y_sube_la_subescena
+L 0xa97b sube_la_subescena_del_curling
+C 0xa978 la cuenta que traiga A
+C 0xa97e y la subescena siguiente
+L 0xa980 curling_2_el_rotulo el rotulo de arranque
+C 0xa983 la cuenta
+C 0xa988 el rotulo
+C 0xa98c el contador de fotogramas, a cero
+C 0xa992 el bit 6: si hay partida
+C 0xa994 con partida, 246 fotogramas
+C 0xa998 y en la demostracion, 32
+L 0xa99c curling_3_la_espera un fotograma si y otro no
+C 0xa9a2 el bit 0 del contador de fotogramas
+C 0xa9aa lo que el jugador toque
+C 0xa9ad y si toca algo, se sigue esperando
+C 0xa9ae el arranque
+L 0xa9b5 curling_4_la_pista la musica, y la pista puesta
+C 0xa9b8 mientras suene algo, no
+C 0xa9c0 la cuenta
+C 0xa9c5 las casillas de la pista
+C 0xa9cd y la musica del curling
+L 0xa9d2 curling_5_espera_a_la_musica
+C 0xa9d5 mientras suene la 0x8E, no se sigue
+L 0xa9da curling_6_el_fotograma las quince piezas del fotograma
+B 0xa9da El fotograma del curling: quince llamadas seguidas, una a cada cosa -las piedras, la escoba, el hielo, los marcadores, los sprites-, escritas una detras de otra y sin bucle, igual que el fotograma del ciclismo. El orden en que estan es el orden en que se pinta.
+C 0xaa07 el estado de la tirada
+C 0xaa0a con dos, se acabo
+C 0xaa13 el bit 6: si hay partida
+C 0xaa15 por donde va la piedra
+
+
+# ======================================================================
+# COMENTARIOS DE LINEA
+# ======================================================================
+L 0xaa23 mira_si_la_piedra_paso_la_raya el tramo de 0xC8 a 0xCF
+C 0xaa27 antes de 0xC8, nada
+C 0xaa2a y pasada la 0xCF, una mas
+C 0xaa2f el estado de la tirada
+L 0xaa31 curling_7_la_piedra_rodando el fotograma mientras la piedra va sola
+C 0xaa34 la cuenta del lanzamiento
+C 0xaa38 una menos
+C 0xaa3d y en el fotograma justo, la piedra cambia de color
+C 0xaa78 los tres bytes de la velocidad
+C 0xaa80 mientras alguno no sea cero, la piedra sigue
+C 0xaa81 y parada del todo, la subescena siguiente
+L 0xaa84 curling_8_los_puntos lo que ha valido la tirada
+C 0xaa87 si la piedra ha llegado a la casa
+C 0xaa8d suena
+C 0xaa90 los puntos, escritos
+C 0xaa93 la marca del jugador
+C 0xaa99 tres bytes
+C 0xaa9d sumados en BCD
+C 0xaaa6 y la marca, a la pantalla
+C 0xaaac con 64 fotogramas de espera
+L 0xaab1 escribe_los_puntos_de_la_tirada
+L 0xaab7 escribe_tres_bytes_bcd
+C 0xaab7 tres bytes, o sea seis cifras
+L 0xaabc curling_9_el_record la marca contra el record del mundo
+C 0xaabf la cuenta
+C 0xaac1 sin puntos no hay record que batir
+C 0xaac8 la marca del jugador
+C 0xaad0 contra el record del mundo del curling
+C 0xaad8 y si no llega, se sigue
+C 0xaadb la marca
+C 0xaade puesta de record
+C 0xaae6 con su musica
+C 0xaaed y a la subescena 12
+L 0xaaf1 curling_10_el_cierre la marca, la mejor y si califica
+C 0xaaf1 el jugador de turno
+C 0xaaf5 si le quedan intentos, no se cierra
+C 0xaaf8 la mejor marca del jugador 1
+C 0xab04 y la del 2
+C 0xab10 la marca de esta tanda
+C 0xab18 contra la que habia que batir
+C 0xab1c el jugador de turno
+C 0xab20 si no llega, no califica
+C 0xab22 calificado
+L 0xab28 curling_11_el_final la despedida
+C 0xab34 la cuenta
+L 0xab36 cierra_el_curling la musica y a esperar ya no
+C 0xab36 la musica del final
+L 0xab40 curling_12_el_record_batido el rotulo, parpadeando
+C 0xab46 el color de la piedra
+C 0xab4e el rotulo del record
+C 0xab51 con el record del mundo al lado
+C 0xab5c y mientras suene algo, no se cierra
+L 0xab66 elige_la_fuerza el jugador cambia entre cinco
+B 0xab66 Antes de tirar, el jugador elige la fuerza entre cinco valores: cada toque de arriba o de abajo sube uno y a la quinta vuelve a la primera. El numero que se ve en la pantalla no es el valor: es el valor multiplicado por cuatro EN BCD, con dos `add a,a / daa` seguidos.
+C 0xab69 el bit 7 dice de quien es el turno
+C 0xab6a los flancos del jugador 1
+C 0xab72 o los del 2
+C 0xab76 los bits 3 y 4
+C 0xab7a una fuerza mas
+C 0xab7b de cinco
+C 0xab7f y vuelta a la primera
+C 0xab86 con su sonido
+L 0xab8b fuerza_a_posicion la fuerza elegida, en la columna de tiro
+C 0xab8f por dieciseis
+C 0xab93 desde la columna 0x50
+L 0xab99 fuerza_del_jugador_de_turno HL al byte que la lleva
+C 0xab9c el bit 7 dice de quien es el turno
+L 0xaba3 escribe_la_fuerza el numero que se ve
+L 0xaba6 escribe_la_fuerza_en
+C 0xabab por dos, en BCD
+C 0xabad y por dos otra vez: por cuatro en total
+L 0xabb9 mira_si_la_piedra_se_sale fuera de la pista, nula
+C 0xabb9 por donde va la piedra
+C 0xabbc el tramo bueno
+L 0xabc2 tirada_nula FOUL, y a la subescena 10
+C 0xabc2 el rotulo FOUL
+C 0xabc8 los puntos, a la vista
+C 0xabcd la subescena 10
+C 0xabd0 y su sonido
+C 0xabd5 por donde va a lo largo
+C 0xabd8 y pasada de 0x367, se sale
+L 0xabe0 intentos_del_jugador_de_turno HL al byte
+L 0xabe5 anima_el_final la piedra que se para y su musica
+C 0xabe8 si ya esta anunciado, nada
+C 0xabec y mientras suene algo, tampoco
+C 0xabf1 anunciado
+C 0xabf7 con puntos
+C 0xabfd una musica
+C 0xac02 y sin ellos, otra
+C 0xac06 el color de la piedra
+L 0xac0d parpadea_la_piedra el color, cada dieciseis fotogramas
+C 0xac10 el bit 4 del contador de fotogramas
+C 0xac18 el color de las dos piezas
+L 0xac1f rotulos_del_curling el nombre, la marca a batir y la fuerza
+C 0xac22 la marca a batir
+C 0xac2d el rotulo de la fuerza
+C 0xac3b y su numero
+L 0xac3e marcador_del_curling los rotulos y la mejor marca
+C 0xac3e el rotulo de arriba
+C 0xac44 los intentos que quedan
+C 0xac4d el bit 7 dice de quien es el turno
+C 0xac52 y la mejor marca del jugador
+L 0xac5a intentos_del_turno_a_la_vista
+
+
+# ======================================================================
+# COMENTARIOS DE LINEA
+# ======================================================================
+L 0xacb3 velocidad_de_la_piedra la fuerza, repartida en los dos ejes
+C 0xacb6 el reparto, apuntado
+C 0xacb9 la fuerza con la que se tira
+C 0xacbf por la componente de un eje
+C 0xacc2 y esa es la velocidad a lo largo
+C 0xacca por la del otro
+C 0xaccd si va hacia el otro lado
+C 0xacd3 en negativo
+C 0xacd5 y esa es la velocidad a lo ancho
+L 0xacdc reparte_la_direccion normaliza el vector con las dos curvas
+B 0xacdc EL REPARTO DE LA DIRECCION, que es una normalizacion de vector hecha con dos tablas. Se toman las dos componentes, se apunta cual es la mayor y su signo, se divide la menor entre la mayor -corriendo la mayor cinco bits para que el cociente quepa en 0..32- y con ese cociente se leen LAS DOS curvas de 0xAE4C y 0xAE6D, cruzadas. Las dos juntas son un cuarto de vuelta: la que baja de 0xFF a 0xB5 y la que sube de 0x02 a 0xB5 se cortan justo en el 0xB5 de los cuarenta y cinco grados, que es 0,707 de 0xFF. O sea coseno y seno de un angulo que nunca llega a calcularse.
+C 0xacdc una componente
+C 0xace0 y la otra
+C 0xace4 su signo
+C 0xacec en positivo
+C 0xacef y el signo, apuntado
+C 0xacf7 la mayor de las dos
+C 0xacfb se cambian, para que la mayor quede abajo
+C 0xad00 y se apunta cual era
+C 0xad05 la mayor, corrida cinco bits
+C 0xad15 y la division da el angulo, de 0 a 32
+C 0xad19 con tope
+C 0xad24 la curva que baja
+C 0xad2a o la que sube, segun cual era la mayor
+C 0xad2f y la companera, para el otro eje
+C 0xad3a las dos componentes ya normalizadas
+L 0xad3e avanza_la_piedra la velocidad, sumada a la posicion
+C 0xad3e la velocidad
+C 0xad41 a la posicion
+C 0xad48 y el otro eje
+C 0xad4c con su acarreo
+L 0xad4e frena_la_piedra el rozamiento del hielo
+C 0xad4e la cuenta del frenado
+C 0xad57 lo que se le quita a lo largo
+C 0xad60 el signo del otro eje
+C 0xad64 y lo que se le quita a lo ancho
+C 0xad6a con signo, se resta
+C 0xad6d tres bytes
+C 0xad72 y sin el, se suma
+L 0xad7d barre_el_hielo la escoba, que es lo que la deja correr mas
+B 0xad7d La escoba: mientras la piedra rueda, machacar la tecla suma velocidad. En la DEMOSTRACION nadie machaca, asi que el propio cartucho se inventa el barrido -uno de cada ocho fotogramas, mas fuerte antes de la casilla 0x6C que despues-, que es como la piedra llega a alguna parte sin jugador.
+C 0xad7d lo que el jugador esta tocando
+C 0xad84 el bit 6: si hay partida
+C 0xad88 en la demostracion
+C 0xad8b solo en dos tiradas
+C 0xad93 uno de cada ocho fotogramas
+C 0xad96 barrido fuerte
+C 0xad9b antes de la casilla 0x6C
+C 0xad9f y flojo despues
+C 0xada3 si la piedra no esta rodando, no se barre
+C 0xada8 ni si esta parada
+C 0xadaf los bits 3 y 4
+C 0xadb3 el sonido de la escoba
+C 0xadb8 la velocidad de ahora
+C 0xadbe la cuenta del barrido
+C 0xadc8 su nibble de arriba
+C 0xadd0 y de cero no se queda
+C 0xadd5 hacia atras
+C 0xadda la posicion
+C 0xaddd mas lo barrido
+C 0xade2 con tope
+C 0xadea apuntada
+L 0xadee sprites_de_la_pista los dos de la raya
+C 0xadee por donde va la piedra
+C 0xadf1 el borde de la casa
+C 0xadf9 y antes de el, cero
+C 0xae02 la fila de la piedra
+L 0xae0f vuelca_los_sprites_del_curling los 80 bytes de 0xE180
+C 0xae12 la tabla de atributos
+C 0xae15 veinte sprites de cuatro bytes
+L 0xae1b resta_tres_bytes de (HL), y de cero no baja
+C 0xae1f restado
+C 0xae22 sin acarreo, ya esta
+L 0xae28 pon_tres_bytes_a_cero cuando la resta se pasa
+L 0xae2f suma_tres_bytes los de (DE) a los de (HL)
+C 0xae32 sumados con acarreo
+L 0xae44 cambia_el_signo_de_de en complemento a dos
+C 0xae45 los dos bytes, del reves
+C 0xae4a y uno mas: eso es el complemento a dos
+
+
+# ======================================================================
+# COMENTARIOS DE LINEA
+# ======================================================================
+L 0xae8e pinta_la_pista_de_hielo el hielo, la casa y las rayas
+C 0xae8e por donde va la pista
+C 0xae91 pasada la 0x2C1, ya no se pinta
+C 0xae98 la casa
+C 0xaea1 el circulo grande
+C 0xaeaa y las rayas
+C 0xaeb6 la fila de arriba
+C 0xaebd por donde va la pista
+C 0xaec2 el bit 2 elige uno de los dos tiles
+C 0xaec8 treinta y dos casillas
+C 0xaecb alternando de una en una
+L 0xaed3 pinta_los_bordes las dos rayas de los lados
+C 0xaed6 la de un lado
+C 0xaee3 y la del otro
+L 0xaeed pinta_un_borde con el trozo que asome, segun el desplazamiento
+C 0xaef0 por donde va la pista
+C 0xaef4 entre ocho: de pixeles a casillas
+C 0xaeff dos mas
+C 0xaf0b antes de la 0x1F
+C 0xaf0f pasada la 0x4B
+C 0xaf15 lo que quede hasta 0x6B
+C 0xaf1a lo que va desde el principio
+C 0xaf2a y en medio, la fila entera
+C 0xaf36 los tres bits de abajo: por donde empieza el dibujo
+C 0xaf3d ocho menos: lo que queda del tile
+C 0xaf42 la casilla
+C 0xaf49 y al acabarse el tile, se vuelve a empezar
+L 0xaf51 pinta_la_fila_del_hielo la franja que se desplaza
+B 0xaf51 La pista de hielo se desplaza a lo largo, y la fila que la dibuja sale de un bloque descomprimido a la RAM en 0xE400: los tres bits de abajo del desplazamiento eligen entre DOS versiones del mismo dibujo -0xE400 y 0xE478-, y de ahi salen las treinta y dos casillas de la franja.
+C 0xaf51 la fila
+C 0xaf57 por donde va la pista
+C 0xaf5b entre ocho
+C 0xaf64 una version del dibujo
+C 0xaf69 o la otra, segun el bit que se ha caido
+C 0xaf6f treinta y dos casillas
+L 0xaf78 rectangulo_de_la_pista con el desplazamiento de la pista
+L 0xaf7c rectangulo_con_recorte el dibujo pegado, o el de repuesto
+B 0xaf7c LOS RECTANGULOS CON RECORTE. La cabecera son cinco bytes -columna, ancho, alto y el destino de VRAM- y lo bonito es que cada figura trae DOS juegos de datos del mismo tamano: el que va pegado detras de la cabecera y otro aparte. Cual de los dos se usa lo decide el acarreo de la columna menos el desplazamiento de la pantalla, o sea si la figura esta cortada por la izquierda o no, y el `ex de,hl` de 0xAF9D es el que los intercambia. Hay ocho pares, y los dieciseis bloques encajan al byte.
+C 0xaf7c el desplazamiento de la pantalla
+C 0xaf7d entre ocho: de pixeles a casillas
+C 0xaf89 la columna de la figura
+C 0xaf8a menos el desplazamiento: ahi esta el recorte
+C 0xaf8d el ancho y el alto
+C 0xaf91 y el juego de datos de repuesto
+C 0xaf9b si la figura no esta cortada
+C 0xaf9d se cambian los dos juegos
+L 0xafa2 dibuja_el_rectangulo la parte que cabe, fila a fila
+C 0xafa6 la columna, apuntada
+C 0xafa8 con la columna negativa
+C 0xafab lo que se sale por la izquierda
+C 0xafac fuera del todo, no se pinta nada
+C 0xafb0 lo que queda de ancho
+C 0xafb1 y el dibujo empieza mas alla
+C 0xafb7 pasada la columna 0x20
+C 0xafba lo que se sale por la derecha
+C 0xafc2 el ancho, recortado
+C 0xafc7 y el destino, corrido
+C 0xafca el ancho y el alto, apuntados
+L 0xafd0 filas_del_rectangulo una fila por vuelta
+C 0xafd0 donde va esta fila
+C 0xafd5 la fila, a la VRAM
+C 0xafdd una fila menos
+C 0xafe0 el ancho
+C 0xafe2 la fila de abajo en la pantalla
+C 0xafe6 y la siguiente del dibujo
+
+
+# ======================================================================
+# COMENTARIOS DE LINEA
+# ======================================================================
+L 0xb2f2 acelera_la_piedra 0x98 mas por fotograma, con tope
+C 0xb2f5 0x98 mas
+C 0xb2fb con tope
+L 0xb305 flancos_del_jugador_de_turno HL al byte que los lleva
+C 0xb308 el bit 7 dice de quien es el turno
+L 0xb310 arranca_la_tirada el disparo suelta la piedra
+C 0xb316 el estado de la tirada
+C 0xb31b el disparo
+C 0xb31f la tirada, en marcha
+C 0xb320 y la velocidad de arranque
+L 0xb32b suelta_la_piedra el segundo disparo la deja ir
+C 0xb32c el disparo
+C 0xb334 dos mas de velocidad
+C 0xb338 pasada de 0x80, se suelta sola
+C 0xb33b y por debajo de 0x1F, aun no
+C 0xb33e la piedra, rodando
+C 0xb341 con su sonido
+L 0xb346 anima_a_los_dos_jugadores las figuras que se turnan
+C 0xb346 el jugador de un lado
+C 0xb34f y el del otro
+C 0xb355 la cuenta de la figura
+C 0xb359 una menos
+C 0xb35e y al agotarse, la figura siguiente
+C 0xb360 de cuatro en cuatro
+C 0xb369 la figura, apuntada
+L 0xb376 anima_al_que_barre_la_izquierda
+L 0xb383 cambia_la_figura_del_barrendero cada cuatro pixeles de pista
+C 0xb383 por donde va la pista
+C 0xb386 entre cuatro
+C 0xb38a y mientras no cambie, la misma figura
+C 0xb38f la figura siguiente
+C 0xb390 de tres en tres
+C 0xb39b apuntada
+L 0xb39d apaga_la_piedra_al_pararse el color, quitado
+C 0xb39d si la tirada no ha empezado, nada
+C 0xb3a5 por donde va la pista
+C 0xb3aa y mientras no cambie, nada
+C 0xb3ae una menos
+C 0xb3b0 por debajo de 0x14
+C 0xb3b4 el sprite, escondido
+L 0xb3b7 anima_la_piedra la figura, y el aviso al llegar
+C 0xb3b7 si la tirada no ha empezado
+C 0xb3c0 por donde va la pista
+C 0xb3c5 y mientras no cambie, nada
+C 0xb3ca la figura siguiente
+C 0xb3cb de nueve
+C 0xb3cf y vuelta a la septima
+C 0xb3d2 en la octava
+C 0xb3d5 suena
+C 0xb3da con dos
+C 0xb3e0 una figura
+C 0xb3e3 y la otra
+L 0xb3e5 barre_uno_u_otro las dos teclas, cada una a un lado
+C 0xb3e5 lo recien pulsado por el jugador de turno
+C 0xb3ea el bit 4
+C 0xb3f8 y el bit 3
+L 0xb3fd apunta_el_barrido la figura del que barre
+C 0xb400 la cuenta
+C 0xb403 hacia un lado
+C 0xb408 o hacia el otro
+L 0xb40b sprites_del_curling las cuatro figuras, a la tabla de la RAM
+C 0xb40b el primer hueco
+C 0xb40f la figura de un jugador
+C 0xb418 y la del otro
+L 0xb42e sprite_del_barrendero los cuatro bytes de uno
+C 0xb42e si la tirada ya termino
+C 0xb432 fuera de la pantalla
+C 0xb437 la fila, dieciseis mas abajo
+C 0xb43d la fila
+C 0xb440 la columna
+C 0xb446 el patron, de la tabla
+C 0xb44f y el color
+L 0xb453 sprites_de_la_piedra si esta en el aire
+C 0xb453 si no hay tirada, nada
+L 0xb45f figura_de_varias_piezas las piezas de la tabla de 0xB4AA
+B 0xb45f Las figuras del curling son varias piezas de cuatro bytes cada una, y salen de la tabla de 0xB4AA: la figura se multiplica por dieciseis para dar con su grupo, y de ahi salen cuatro piezas -cinco o seis en dos de ellas-, cada una con su fila, su columna, su patron y su color. Una fila de 0x80 en la tabla significa que la pieza no se pinta: se le pone la fila 0xE0, que esta fuera de la pantalla.
+C 0xb45f la fila de la figura
+C 0xb463 cual es
+C 0xb466 por dieciseis
+C 0xb46a pasada la mitad, cuatro mas
+C 0xb471 la tabla de las piezas
+C 0xb478 la figura 0x0E
+C 0xb47a cuatro piezas
+C 0xb47e y esa, una mas
+C 0xb47f la 0x07
+C 0xb487 la fila 0xE0 no se pinta
+C 0xb48b y las demas van sumadas
+C 0xb48e el 0x80 de la tabla
+C 0xb492 tampoco se pinta
+C 0xb496 la fila
+C 0xb49b la columna, sumada
+C 0xb49f el patron
+C 0xb4a3 y el color
+L 0xb5a8 acerca_a_los_barrenderos los dos, siguiendo a la piedra
+C 0xb5a8 si el de abajo esta escondido, nada
+C 0xb5b2 la columna del de arriba
+C 0xb5b9 por donde va la pista
+C 0xb5c0 pasada la 0x35C
+C 0xb5c7 el de abajo se esconde
+C 0xb5cb la distancia entre los dos
+C 0xb5cc a menos de 0x15
+C 0xb5d2 se acabo el barrido
+L 0xb5d9 acerca_un_barrendero un pixel por fotograma hacia la piedra
+C 0xb5d9 la columna de la piedra
+C 0xb5de la del barrendero, mas su hueco
+C 0xb5e0 si esta donde debe, no se mueve
+C 0xb5e2 y si no, un pixel hacia alla
+C 0xb5ec la fila, la de la piedra
+L 0xb5f2 puntos_de_la_tirada la distancia al centro de la casa
+B 0xb5f2 LOS PUNTOS DEL CURLING, sin una sola multiplicacion. La distancia al centro se saca doblando las dos coordenadas sobre el eje de la casa -de ahi los dos `neg`- y con ellas se entra en la tabla TRIANGULAR de 0xB666, seis filas de cinco donde cada casilla trae ya los dos valores empaquetados en un byte. De ahi sale un indice de 0 a 7, y ese indice se convierte en puntos con la tabla de 0xB684: 0, 5, 10, 15, 20, 25, 30 y 40.
+C 0xb5f2 la columna de la piedra
+C 0xb5f5 desde el borde de la casa
+C 0xb5f8 fuera de la casa, cero puntos
+C 0xb5fc por donde va la pista
+C 0xb605 antes de la casa, tampoco
+C 0xb607 pasada de 0xA0
+C 0xb60a la mitad de aca
+C 0xb60e y la de alla, doblada sobre el centro
+C 0xb614 lo mismo con la otra coordenada
+C 0xb61c entre ocho: la fila de la tabla
+C 0xb622 por cinco: cinco columnas por fila
+C 0xb629 entre dieciseis
+C 0xb62d el bit que se cae dice que nibble
+C 0xb633 la tabla triangular
+C 0xb63a el nibble de arriba
+C 0xb644 justo en el centro
+C 0xb650 y en la fila justa
+C 0xb656 son los cuarenta puntos
+C 0xb659 la tabla de los ocho valores
+C 0xb662 y ese es el resultado de la tirada
+L 0xb68c sprite_de_la_piedra_en_la_casa la piedra, con su sombra
+C 0xb68c si no hay tirada, nada
+C 0xb697 la posicion
+C 0xb69b dieciseis mas abajo
+C 0xb6a0 y dieciseis a la derecha
+C 0xb6a5 con el patron que le toca
+C 0xb6a7 y su color
+L 0xb6aa patron_de_la_piedra segun lo deprisa que vaya
+C 0xb6aa la velocidad
+C 0xb6af parada, el primero
+C 0xb6b3 el reparto de la direccion
+C 0xb6b6 pasado el ocho
+C 0xb6bb y pasado el 0x20
+C 0xb6c1 si va hacia el otro lado
+C 0xb6c5 el patron se cuenta al reves
+C 0xb6c7 por cuatro: son patrones de 16x16
+C 0xb6c9 desde el 0xC8
+L 0xb6cd monta_el_hielo la pista de curling, patrones y color
+C 0xb6d3 el color del hielo
+C 0xb6e1 las casillas
+C 0xb6e7 los patrones
+C 0xb6f0 su color
+C 0xb702 y las dos mitades que se repiten
+C 0xb711 el circulo de la casa
+C 0xb71a con sus casillas
+
+
+# ======================================================================
+# COMENTARIOS DE LINEA
+# ======================================================================
+C 0x6a9a hacia atras: se cuenta con signo
+C 0x6aa0 y se apunta el sentido
+C 0x6aa2 en positivo
+C 0x6aa4 el paso, apuntado
+C 0x6aa6 y el sentido
+C 0x6aa9 el angulo de la carrera
+C 0x6aad su coseno
+C 0x6ab2 por la velocidad
+C 0x6ab5 y ese es el avance
+C 0x6abc apuntado
+C 0x6ac0 la parte fina del avance
+C 0x6ac3 que se guarda para el fotograma siguiente
+C 0x6ac8 y el resto, entre ocho: la casilla
+L 0x6acf cae_el_liston el liston tirado, bajando por su curva
+C 0x6acf el sprite del liston
+C 0x6ad3 pasada la fila 0x87, ya esta en el suelo
+C 0x6ad6 por donde va su curva de caida
+C 0x6adb lo que baja en este fotograma
+C 0x6ade y una columna a la derecha
+C 0x6ae1 el punto siguiente de la curva
+C 0x6ae4 y el 0xFE la deja clavada en el ultimo
+L 0x6aeb dibujo_del_publico dos versiones, alternando
+C 0x6aee el bit 1 del contador de fotogramas
+C 0x6af0 una version
+C 0x6af5 y la otra
+C 0x6afb dos tercios nada mas
+C 0xa3f2 la casilla de al lado
+C 0xa3ff con su tile
+C 0xa403 y la de mas alla
+C 0x941e los dos ciclistas
+C 0x9421 el choque entre ellos
+C 0x9424 lo que avanzan
+C 0x9431 las chispas
+C 0x9434 lo que tienen delante
+C 0x943d los rivales
+C 0x9446 el circuito, una columna
+C 0x944f la distancia
+C 0x9452 y la ventana, a la VRAM
+C 0xadfb desde la columna 0x28
+C 0xadff los dos sprites de la raya
+C 0xae07 con la columna que sale de la cuenta
+C 0xae0b y el segundo, igual
+C 0x94d6 negativo: el ciclista espera
+C 0x94da el 1
+C 0x94dd y el 2
+C 0x94e1 si aun no ha frenado
+C 0x94e7 y si no lleva figura
+C 0x94f1 su carril
+C 0x94fa la figura que le toca
+C 0xa73e la fila
+C 0xa742 la columna
+C 0xa744 el patron
+C 0xa749 y el color
+C 0xac5a los intentos del jugador de turno
+C 0xac5f la casilla del marcador
+C 0xac62 de tres
+C 0xac67 el tile del intento gastado
+C 0xac6c los que quedan
+C 0xac70 y el de la piedra que le queda
+C 0xac72 a la casilla
+L 0xb72f espeja_un_dibujo el mismo bloque, del reves
+B 0xb72f EL ESPEJO. La pista de curling es simetrica, asi que la mitad de la derecha no esta guardada: se descomprime la de la izquierda a la RAM y se le da la vuelta a cada byte, bit a bit, con ocho vueltas de `rl (hl) / rra` -lo que sale por arriba de la casilla entra por abajo del acumulador-. Asi el dibujo ocupa la mitad.
+C 0xb732 el bloque, descomprimido a la RAM
+C 0xb73d ocho bits
+C 0xb740 el bit de arriba del byte
+C 0xb742 entra por abajo del resultado: eso es el espejo
+C 0xb745 el byte, ya del reves
+C 0xb747 y el siguiente
+C 0xb74d el bloque espejado, a la VRAM
+C 0x646a los sprites, escondidos
+C 0x6470 los veinticuatro
+C 0x6476 y los 28 bytes de las piezas de arranque
+C 0xac79 el bit 7 dice de quien es el turno
+C 0xac7c la mejor marca del jugador 1
+C 0xac81 o la del 2
+C 0x996f la figura, en el nibble de abajo
+C 0x9971 y el color, en el de arriba
+C 0x56e8 los tres bytes de la marca, apuntados
+C 0x6144 el estado de la caida
+C 0x614a el angulo
+C 0x614c la velocidad
+C 0x614e y la aceleracion
+C 0x614f la cuenta de la figura
+C 0x4407 el tercio de arriba, el de en medio y el de abajo
+C 0x440c 2 KB: lo que ocupa un tercio
+C 0x4412 y el siguiente
+C 0x4adf los registros, guardados: quien llama esta a mitad de otra cosa
+C 0x4ae2 el reparto de verdad
+C 0x4ae9 y las interrupciones, abiertas otra vez
+C 0x69d8 un 0xC3 en la Y y el sprite no se ve
+C 0x69da cuatro bytes por sprite
+C 0x69de y los que digan
+C 0x6766 dos bytes por entrada
+C 0x6767 la entrada que toca
+C 0x676a su dibujo
+C 0x43e4 la fila que se copia
+C 0x43e7 a la VRAM
+C 0xae28 los tres, a cero
+C 0xae2b y el de en medio
+C 0x6793 la cuenta del festejo
+C 0x6797 si aun no ha empezado
+
+
+# ======================================================================
+# COMENTARIOS DE LINEA
+# ======================================================================
+L 0xa7bd sube_el_crono_del_ciclista nueve centesimas por fotograma, y el limite

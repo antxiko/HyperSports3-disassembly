@@ -1,0 +1,107 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>In the emulator — Hyper Sports 3 (Konami, 1985)</title>
+<style>
+:root{--tinta:#cfd0d4;--suave:#83868f;--fondo:#000;--panel:#0c0e13;--linea:#23262e;
+  --rojo:#ff897d;--cyan:#65dbef;--verde:#3eb849;--oro:#ded087}
+@media (prefers-color-scheme:light){:root{--tinta:#191a1e;--suave:#5a5d66;--fondo:#e9e7e1;
+  --panel:#f7f6f2;--linea:#d0cdc5;--rojo:#b23f34;--cyan:#1c6b7c;--verde:#2b7734;--oro:#8a7420}}
+:root[data-theme="dark"]{--tinta:#cfd0d4;--suave:#83868f;--fondo:#000;--panel:#0c0e13;
+  --linea:#23262e;--rojo:#ff897d;--cyan:#65dbef;--verde:#3eb849;--oro:#ded087}
+:root[data-theme="light"]{--tinta:#191a1e;--suave:#5a5d66;--fondo:#e9e7e1;--panel:#f7f6f2;
+  --linea:#d0cdc5;--rojo:#b23f34;--cyan:#1c6b7c;--verde:#2b7734;--oro:#8a7420}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fondo);color:var(--tinta);padding:0 1.25rem 6rem;
+  font:15px/1.7 ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+.w{max-width:1120px;margin:0 auto}
+.n{max-width:68ch}
+h1,h2,h3,h4{font-weight:400;text-wrap:balance}
+a{color:var(--cyan)}
+img{image-rendering:pixelated;max-width:100%;height:auto;display:block}
+header.top{display:flex;flex-direction:column;align-items:center;gap:1.5rem;
+  padding:4rem 0 2rem;text-align:center}
+header.top img{width:min(100%,642px)}
+.claim{max-width:60ch;color:var(--suave);font-size:1.05rem}
+.claim b{color:var(--tinta);font-weight:400}
+.ficha{display:flex;flex-wrap:wrap;justify-content:center;gap:0 1.5rem;width:100%;
+  font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--suave);
+  border-top:1px solid var(--linea);border-bottom:1px solid var(--linea);padding:.85rem 0}
+.ficha b{color:var(--rojo);font-weight:400}
+nav{display:flex;flex-wrap:wrap;gap:1.25rem;justify-content:center;padding:1.25rem 0;
+  font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+nav a{color:var(--suave);text-decoration:none;border-bottom:1px solid transparent}
+nav a:hover,nav a:focus{color:var(--tinta);border-bottom-color:var(--rojo)}
+nav.docs{border-top:1px solid var(--linea);border-bottom:1px solid var(--linea);
+  margin-bottom:1rem}
+section{margin-top:4.5rem;scroll-margin-top:1rem}
+section>h2{font-size:1rem;letter-spacing:.1em;text-transform:uppercase;
+  border-left:3px solid var(--rojo);padding-left:.9rem;margin:0 0 1.5rem}
+.cifras{display:grid;gap:1px;background:var(--linea);border:1px solid var(--linea);
+  grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+.cifra{background:var(--panel);padding:1.1rem}
+.cifra b{display:block;font-size:1.7rem;color:var(--oro);font-weight:400;
+  font-variant-numeric:tabular-nums;line-height:1.2}
+.cifra span{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--suave)}
+.hall{border-top:1px solid var(--linea);padding-top:1.75rem;margin-top:2.5rem}
+.hall:first-of-type{border-top:0;padding-top:0;margin-top:0}
+.hall h3{margin:0 0 .75rem;font-size:1.15rem;color:var(--rojo)}
+.hall h4{color:var(--oro);margin:1.5rem 0 .5rem;font-size:.95rem}
+.hall p{margin:0 0 1rem}
+pre.asm{background:var(--panel);border-left:2px solid var(--verde);margin:1.25rem 0;
+  padding:1rem 1.1rem;overflow-x:auto;font-size:13px;line-height:1.6;color:var(--tinta)}
+.par{display:grid;gap:1.25rem;grid-template-columns:1fr}
+@media(min-width:820px){.par{grid-template-columns:1fr 1fr}}
+.par figure{margin:0}
+table{border-collapse:collapse;width:100%;margin:1.25rem 0;font-size:13px;display:block;
+  overflow-x:auto}
+th,td{text-align:left;padding:.5rem .75rem;border-bottom:1px solid var(--linea)}
+th{color:var(--suave);font-weight:400;font-size:11px;letter-spacing:.07em;text-transform:uppercase}
+td.num{font-variant-numeric:tabular-nums;color:var(--oro)}
+.nivel{margin-top:2rem}
+.nivel h3{margin:0 0 .9rem;font-size:.95rem;letter-spacing:.06em;text-transform:uppercase}
+.nivel em{color:var(--cyan);font-style:normal}
+.sep{color:var(--suave);margin:0 .6rem}
+.rejilla{display:grid;gap:.9rem;grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+.rejilla figure{margin:0;background:var(--panel);box-shadow:0 0 0 1px var(--linea)}
+.rejilla figcaption{display:flex;justify-content:space-between;padding:.45rem .65rem;
+  font-size:11px;color:var(--suave);border-top:1px solid var(--linea)}
+.dir{font-variant-numeric:tabular-nums;color:var(--verde)}
+footer{margin-top:5rem;padding-top:1.5rem;border-top:1px solid var(--linea);
+  color:var(--suave);font-size:12px}
+
+/* Aviso de trabajo en curso: tiene que verse antes que las cifras, porque un
+   100% mal leido hace mas dano que no ponerlo. */
+.aviso{background:#3a2a10;border-left:3px solid var(--oro);margin:1.5rem auto;
+  padding:1rem 1.2rem;max-width:900px;border-radius:4px}
+.aviso p{margin:0;color:var(--tinta);font-size:15px;line-height:1.65}
+.galeria{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+  gap:1.5rem;margin:1.5rem 0}
+.galeria figure{margin:0}
+.galeria img{width:100%;height:auto;image-rendering:pixelated;
+  border:1px solid var(--linea);border-radius:3px}
+.galeria figcaption{color:var(--suave);font-size:13px;margin-top:.5rem}
+audio{display:block;width:100%;max-width:640px;margin:.75rem 0 1.5rem}
+</style>
+<div class="w"><nav class="top"><a href="index.html">Home</a><a href="GETTING-STARTED.html">Start</a><a href="THE-GAME.html">The game</a><a href="THE-CARTRIDGE.html">The cartridge</a><a href="THE-CODE.html">The code</a><a href="FINDINGS.html">Findings</a><a href="IN-THE-EMULATOR.html" style=color:var(--tinta)>In the emulator</a><a href="OPEN-QUESTIONS.html">Open questions</a><a href="es/EN-EL-EMULADOR.html" style="margin-left:auto;color:var(--oro)">Castellano</a></nav>
+<h1 id="in-the-emulator">In the emulator</h1>
+<p>The pictures on this site are <b>drawn from the ROM</b>, not captured. What the emulator does here is something else: <b>decide whether those drawings are the real thing</b>.</p>
+<h2 id="checking-against-vram">Checking against VRAM</h2>
+<pre><code>make vram</code></pre>
+<p>launches openMSX with the cartridge and <code>tools/omsx_vram.tcl</code>, which at several instants dumps <b>the whole 16 KB of VRAM</b>, the eight VDP registers and the 2 KB of work RAM. Then:</p>
+<pre><code>python3 tools/coteja_vram.py hypersports3.rom 0x4000 work/omsx</code></pre>
+<p>compares byte for byte what Python builds against what the VDP actually holds, and it does it per table, because they do not all mean the same thing:</p>
+<table><tr><th>table</th><th>address</th><th>what it is</th></tr><tr><td>colour</td><td><code>0x0000</code>–<code>0x17FF</code></td><td>the eight colour bytes of each tile</td></tr><tr><td>sprite patterns</td><td><code>0x1800</code>–<code>0x1FFF</code></td><td>the sprite drawings</td></tr><tr><td>patterns</td><td><code>0x2000</code>–<code>0x37FF</code></td><td>the tile drawings</td></tr><tr><td>names</td><td><code>0x3800</code>–<code>0x3AFF</code></td><td>which tile goes in each cell</td></tr></table>
+<p>The first three are <b>static</b>: built once and untouched until the screen changes, so they have to come out at zero. The name table does move —the athlete, the scoreboards, the labels that blink— and there what you look at is how many cells wobble and whether they are the ones that should.</p>
+<h2 id="where-it-stands">Where it stands</h2>
+<table><tr><th>screen</th><th>colour</th><th>spr. patterns</th><th>patterns</th><th>names</th></tr><tr><td>title</td><td>0</td><td>0</td><td>0</td><td>14</td></tr><tr><td>cycling</td><td><b>0</b></td><td><b>0</b></td><td><b>0</b></td><td><b>0</b></td></tr><tr><td>triple jump</td><td>0</td><td>77</td><td>0</td><td>0</td></tr><tr><td>curling</td><td>0</td><td>0</td><td>0</td><td>34</td></tr><tr><td>pole vault</td><td>0</td><td>0</td><td>0</td><td>0</td></tr></table>
+<p><b>Cycling closes at zero across all four tables and on the 128 sprite attribute bytes as well</b>: 15,104 bytes of VRAM identical to the emulator&#x27;s.</p>
+<p>The 14 on the title are the blinking cursor and the 34 on curling are the TEMP readout and the scoreboard, both written after the screen is built. The 77 on the triple jump and the pole vault&#x27;s sprite patterns are <b>the athlete&#x27;s pose</b>: the build-time dump does not have him drawn yet, and the frame that does has the runway already scrolled. Against that frame the pole vault comes out at <b>zero of 2,048 pattern bytes</b> with all six sprites identical.</p>
+<h2 id="no-need-to-play-it">No need to play it</h2>
+<p>The demo walks through all four events on its own, but you have to wait. There is a faster trick: scene 4 is <code>call limpia_la_pantalla / call monta_la_prueba</code>, and <code>monta_la_prueba</code> reads the event from <code>(0xE06A)</code> at <code>0x53CB</code>. A breakpoint between the two that writes the event number there leaves the cartridge building <b>and playing</b> that event. It is not a frozen screen.</p>
+<pre><code>echo 2 &gt; work/prueba.txt      # 0 cycling, 1 triple jump, 2 curling, 3 pole vault
+make vram</code></pre>
+<p>And it comes out better than playing: this way the event inherits the title screen&#x27;s VRAM, which is exactly what it inherits on the real machine. Between screens the cartridge <b>does not clear the patterns or the colour</b> —it only hides the sprites and clears the name table—, so what was underneath is still there. Building an event from scratch introduces hundreds of differing bytes that are not a misreading but the missing inheritance.</p>
+<h2 id="and-tracing-the-drawing-calls">And tracing the drawing calls</h2>
+<pre><code>&quot;openmsx&quot; -machine Philips_VG_8020 -cart hypersports3.rom -script tools/omsx_montaje.tcl</code></pre>
+<p>puts a breakpoint on <b>every</b> drawing routine in the cartridge and logs, in order and with their arguments, every call that falls inside the build window. Replaying that list in Python over the dumped inheritance gives a screen identical to the emulator&#x27;s. It is what separates &quot;a block is missing&quot; from &quot;the format is being read wrong&quot; without eyeballing a single byte.</p>
+<footer><p><em>Hyper Sports 3</em> was published by Konami for the MSX in 1985; its catalogue number is RC-733 and it is 32 KB. All rights in the game remain with their holders. This is preservation, study and documentation work, and the cartridge image is not distributed.</p></footer></div>

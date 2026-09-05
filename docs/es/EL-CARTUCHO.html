@@ -1,0 +1,118 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>El cartucho — Hyper Sports 3 (Konami, 1985)</title>
+<style>
+:root{--tinta:#cfd0d4;--suave:#83868f;--fondo:#000;--panel:#0c0e13;--linea:#23262e;
+  --rojo:#ff897d;--cyan:#65dbef;--verde:#3eb849;--oro:#ded087}
+@media (prefers-color-scheme:light){:root{--tinta:#191a1e;--suave:#5a5d66;--fondo:#e9e7e1;
+  --panel:#f7f6f2;--linea:#d0cdc5;--rojo:#b23f34;--cyan:#1c6b7c;--verde:#2b7734;--oro:#8a7420}}
+:root[data-theme="dark"]{--tinta:#cfd0d4;--suave:#83868f;--fondo:#000;--panel:#0c0e13;
+  --linea:#23262e;--rojo:#ff897d;--cyan:#65dbef;--verde:#3eb849;--oro:#ded087}
+:root[data-theme="light"]{--tinta:#191a1e;--suave:#5a5d66;--fondo:#e9e7e1;--panel:#f7f6f2;
+  --linea:#d0cdc5;--rojo:#b23f34;--cyan:#1c6b7c;--verde:#2b7734;--oro:#8a7420}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fondo);color:var(--tinta);padding:0 1.25rem 6rem;
+  font:15px/1.7 ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+.w{max-width:1120px;margin:0 auto}
+.n{max-width:68ch}
+h1,h2,h3,h4{font-weight:400;text-wrap:balance}
+a{color:var(--cyan)}
+img{image-rendering:pixelated;max-width:100%;height:auto;display:block}
+header.top{display:flex;flex-direction:column;align-items:center;gap:1.5rem;
+  padding:4rem 0 2rem;text-align:center}
+header.top img{width:min(100%,642px)}
+.claim{max-width:60ch;color:var(--suave);font-size:1.05rem}
+.claim b{color:var(--tinta);font-weight:400}
+.ficha{display:flex;flex-wrap:wrap;justify-content:center;gap:0 1.5rem;width:100%;
+  font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--suave);
+  border-top:1px solid var(--linea);border-bottom:1px solid var(--linea);padding:.85rem 0}
+.ficha b{color:var(--rojo);font-weight:400}
+nav{display:flex;flex-wrap:wrap;gap:1.25rem;justify-content:center;padding:1.25rem 0;
+  font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+nav a{color:var(--suave);text-decoration:none;border-bottom:1px solid transparent}
+nav a:hover,nav a:focus{color:var(--tinta);border-bottom-color:var(--rojo)}
+nav.docs{border-top:1px solid var(--linea);border-bottom:1px solid var(--linea);
+  margin-bottom:1rem}
+section{margin-top:4.5rem;scroll-margin-top:1rem}
+section>h2{font-size:1rem;letter-spacing:.1em;text-transform:uppercase;
+  border-left:3px solid var(--rojo);padding-left:.9rem;margin:0 0 1.5rem}
+.cifras{display:grid;gap:1px;background:var(--linea);border:1px solid var(--linea);
+  grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+.cifra{background:var(--panel);padding:1.1rem}
+.cifra b{display:block;font-size:1.7rem;color:var(--oro);font-weight:400;
+  font-variant-numeric:tabular-nums;line-height:1.2}
+.cifra span{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--suave)}
+.hall{border-top:1px solid var(--linea);padding-top:1.75rem;margin-top:2.5rem}
+.hall:first-of-type{border-top:0;padding-top:0;margin-top:0}
+.hall h3{margin:0 0 .75rem;font-size:1.15rem;color:var(--rojo)}
+.hall h4{color:var(--oro);margin:1.5rem 0 .5rem;font-size:.95rem}
+.hall p{margin:0 0 1rem}
+pre.asm{background:var(--panel);border-left:2px solid var(--verde);margin:1.25rem 0;
+  padding:1rem 1.1rem;overflow-x:auto;font-size:13px;line-height:1.6;color:var(--tinta)}
+.par{display:grid;gap:1.25rem;grid-template-columns:1fr}
+@media(min-width:820px){.par{grid-template-columns:1fr 1fr}}
+.par figure{margin:0}
+table{border-collapse:collapse;width:100%;margin:1.25rem 0;font-size:13px;display:block;
+  overflow-x:auto}
+th,td{text-align:left;padding:.5rem .75rem;border-bottom:1px solid var(--linea)}
+th{color:var(--suave);font-weight:400;font-size:11px;letter-spacing:.07em;text-transform:uppercase}
+td.num{font-variant-numeric:tabular-nums;color:var(--oro)}
+.nivel{margin-top:2rem}
+.nivel h3{margin:0 0 .9rem;font-size:.95rem;letter-spacing:.06em;text-transform:uppercase}
+.nivel em{color:var(--cyan);font-style:normal}
+.sep{color:var(--suave);margin:0 .6rem}
+.rejilla{display:grid;gap:.9rem;grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+.rejilla figure{margin:0;background:var(--panel);box-shadow:0 0 0 1px var(--linea)}
+.rejilla figcaption{display:flex;justify-content:space-between;padding:.45rem .65rem;
+  font-size:11px;color:var(--suave);border-top:1px solid var(--linea)}
+.dir{font-variant-numeric:tabular-nums;color:var(--verde)}
+footer{margin-top:5rem;padding-top:1.5rem;border-top:1px solid var(--linea);
+  color:var(--suave);font-size:12px}
+
+/* Aviso de trabajo en curso: tiene que verse antes que las cifras, porque un
+   100% mal leido hace mas dano que no ponerlo. */
+.aviso{background:#3a2a10;border-left:3px solid var(--oro);margin:1.5rem auto;
+  padding:1rem 1.2rem;max-width:900px;border-radius:4px}
+.aviso p{margin:0;color:var(--tinta);font-size:15px;line-height:1.65}
+.galeria{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+  gap:1.5rem;margin:1.5rem 0}
+.galeria figure{margin:0}
+.galeria img{width:100%;height:auto;image-rendering:pixelated;
+  border:1px solid var(--linea);border-radius:3px}
+.galeria figcaption{color:var(--suave);font-size:13px;margin-top:.5rem}
+audio{display:block;width:100%;max-width:640px;margin:.75rem 0 1.5rem}
+</style>
+<div class="w"><nav class="top"><a href="index.html">Portada</a><a href="EMPEZAR.html">Empezar</a><a href="EL-JUEGO.html">El juego</a><a href="EL-CARTUCHO.html" style=color:var(--tinta)>El cartucho</a><a href="EL-CODIGO.html">El código</a><a href="HALLAZGOS.html">Hallazgos</a><a href="EN-EL-EMULADOR.html">En el emulador</a><a href="PREGUNTAS-ABIERTAS.html">Preguntas abiertas</a><a href="../THE-CARTRIDGE.html" style="margin-left:auto;color:var(--oro)">English</a></nav>
+<h1 id="el-cartucho">El cartucho</h1>
+<p><b>Hyper Sports 3</b>, Konami, 1985. Catálogo <b>RC-733</b>. 32 KB de ROM en un cartucho de MSX1, sin <em>mapper</em>, sin SCC y sin RAM propia.</p>
+<h2 id="el-mapa">El mapa</h2>
+<pre><code>0x4000 .. 0xBFFF   los 32 KB del cartucho, páginas 1 y 2
+0xE000 .. 0xE7FF   los 2 KB de RAM de trabajo, y no usa más</code></pre>
+<p>La cabecera son los dieciséis bytes de <code>0x4000</code>: la firma <code>AB</code>, la dirección de INIT (<code>0x405A</code>) y todo lo demás a cero —STATEMENT, DEVICE, TEXT y los seis reservados—.</p>
+<h2 id="los-ocho-registros-del-vdp">Los ocho registros del VDP</h2>
+<p>El bucle de <code>0x4488</code> los escribe en orden, del 0 al 7, sacando cada valor de una tabla. Para el juego son:</p>
+<pre><code>02 E2 0E 7F 07 76 03 E4
+
+R2 = 0x0E -&gt; nombres           0x3800
+R3 = 0x7F -&gt; color             base 0x0000, máscara 0x3FF
+R4 = 0x07 -&gt; patrones          base 0x2000
+R5 = 0x76 -&gt; atributos sprite  0x3B00
+R6 = 0x03 -&gt; patrones sprite   0x1800</code></pre>
+<p><b>En SCREEN 2 los R3 y R4 no son una dirección</b>, son una base y una máscara. Con estos valores la pantalla queda partida en los tres tercios de siempre, cada uno con sus 256 patrones y sus 256 filas de color. De ahí que el cartucho tenga una rutina (<code>L_4405</code>) que descomprime el mismo bloque en los tres a la vez, saltando 0x0800 cada vez.</p>
+<h2 id="lo-que-init-copia-a-la-ram">Lo que INIT copia a la RAM</h2>
+<p>De los 2 KB de RAM de trabajo, <b>doce bytes</b> son los únicos que no arrancan a cero. INIT los copia de <code>0x40CF</code> a <code>0xE053</code>, y son <b>los récords del mundo</b> de las cuatro pruebas, en BCD. Están en RAM y no en ROM porque el juego los sobrescribe en cuanto se mejoran.</p>
+<h2 id="el-reparto-de-escenas">El reparto de escenas</h2>
+<p>Todo el juego lo reparten <b>once tablas de despacho</b>, y las once van pegadas detrás de su <code>call L_4050</code>:</p>
+<pre><code>pop hl / add a,a / call L_4046 / ld e,(hl) / inc hl / ld d,(hl)
+ex de,hl / jp (hl)</code></pre>
+<p>El <code>pop hl</code> recupera su propia dirección de retorno, o sea el principio de la tabla. Es el despachador que comparten los cartuchos de esta familia de Konami.</p>
+<p>La cuenta de entradas de cada tabla no se estima: la fija el encaje de que ninguna entrada puede apuntar dentro de la propia tabla. Las once están en <code>src/hypersports3.entries</code> con su aritmética al byte. La más larga es la de <code>0xA934</code>, con trece entradas; la más alta la de <code>0x4109</code>, con nueve, que es la que reparte el logotipo, el título, las pruebas y el final.</p>
+<h2 id="el-sonido">El sonido</h2>
+<p>El reproductor entero vive entre <code>0x4AD2</code> y <code>0x4DA2</code>, y sus datos justo detrás. La puerta es <code>L_4ADD</code>: se le pasa en A el número de sonido. La tabla de pistas <b>acaba exactamente en su entrada más baja</b>, <code>0x4E1C</code>, que es lo que fija su longitud sin tener que suponerla.</p>
+<p>La tabla de periodos tiene <b>doce valores, no diez</b>, y los dos últimos están escondidos dentro de la tabla de punteros que viene detrás. Los doce caen a menos de uno del semitono exacto: es una octava cromática.</p>
+<h2 id="la-marca-oculta-de-konami">La marca oculta de Konami</h2>
+<p>Los últimos dieciséis bytes —<code>0xBFF0</code> a <code>0xBFFF</code>— llevan el título del juego en <b>katakana y del revés</b>: ハイパースポーツ3, su longitud (0x0D), el <b>0x33</b> del RC-733 y un 0xAA que cierra. <b>No lo lee nadie</b>: no hay una sola instrucción del cartucho que apunte ahí.</p>
+<p>La marca la descubrió <b>Manuel Pazos</b>, y está en muchos de los cartuchos de Konami de estos años.</p>
+<h2 id="creditos">Créditos</h2>
+<p>No hay ninguno. Ni iniciales, ni nombres, ni fechas de compilación en ninguna parte de los 32 KB. Lo único que firma es la marca oculta, y firma la casa, no a las personas.</p>
+<footer><p><em>Hyper Sports 3</em> lo publico Konami para MSX en 1985; su numero de catalogo es RC-733 y son 32 KB. Todos los derechos sobre el juego siguen siendo de sus titulares. Este trabajo es de preservacion, estudio y documentacion, y la imagen del cartucho no se distribuye.</p></footer></div>
