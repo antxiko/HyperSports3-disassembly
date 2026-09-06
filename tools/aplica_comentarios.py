@@ -14,6 +14,9 @@ Lo que se rechaza, y por que:
     de linea colgado de un `defb` no sale por ninguna parte
   - direccion que ya tiene comentario en el .notes: lo escrito a mano manda
   - direcciones repetidas entre tandas: se queda la primera
+  - cabecera de bloque identica -misma direccion y mismo texto- a una que ya
+    esta: el aplicador se corre varias veces por proyecto y sin esto vuelve a
+    meter las mismas cada pasada. En Mopi Ranger habia 1.589 lineas de sobra
   - cabecera de bloque cuya direccion ya tiene cabecera: si no se filtran, cada
     pasada del aplicador vuelve a meter las mismas y el listado acaba con la
     misma cabecera repetida diez veces (paso de verdad en este cartucho)
@@ -28,6 +31,12 @@ import glob
 import os
 import re
 import sys
+
+
+# Una linea de cabecera que solo lleva guiones, iguales o almohadillas es un
+# marco, no un texto: la misma raya se repite arriba y abajo a proposito, asi
+# que esas no se filtran nunca.
+DECORATIVA = re.compile(r"^[-=#*_~+.:\s]*$")
 
 
 def direcciones_del_asm(asm):
@@ -56,9 +65,9 @@ def main(argv):
         m = re.match(r"^C (0x[0-9a-fA-F]{4}) ", ln)
         if m:
             ya.add(int(m.group(1), 16))
-        m = re.match(r"^B (0x[0-9a-fA-F]{4}) ", ln)
+        m = re.match(r"^B (0x[0-9a-fA-F]{4}) +(.*)$", ln)
         if m:
-            ya_bloque.add(int(m.group(1), 16))
+            ya_bloque.add((int(m.group(1), 16), m.group(2).rstrip()))
         m = re.match(r"^L (0x[0-9a-fA-F]{4}) +(\S+)", ln)
         if m:
             ya_etiq.add(int(m.group(1), 16))
@@ -91,10 +100,11 @@ def main(argv):
                     continue
                 visto.add(dire)
             elif m.group(1) == "B":
-                if dire in ya_bloque:
+                clave = (dire, cuerpo.rstrip())
+                if clave in ya_bloque and not DECORATIVA.match(cuerpo):
                     n_ya += 1
                     continue
-                ya_bloque.add(dire)
+                ya_bloque.add(clave)
             elif m.group(1) == "L":
                 nombre = cuerpo.split()[0]
                 if dire not in instr:
