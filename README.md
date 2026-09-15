@@ -15,7 +15,7 @@ the ROM itself — there is not one screen capture in this repository.
 | binary explained | **100 %** — 0 bytes unassigned of 32,768 |
 | code / data | 14,410 / 18,358 bytes |
 | named routines | **931** |
-| listing commented | **34.5 %** — 2,528 comments over 7,328 instructions |
+| listing commented | **34.5 %** — 2,529 comments over 7,328 instructions |
 | routines below 10 % | **0** |
 | tests | 37 |
 

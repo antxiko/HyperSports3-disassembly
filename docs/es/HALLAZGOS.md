@@ -22,6 +22,27 @@ Y hay una tercera marca fechada donde no se espera: de los ocho listones del
 triple salto, el sexto es **17,89 m**, que era el récord del mundo de Joao
 Carlos de Oliveira.
 
+## El cartucho se defiende: protección anticopia
+
+Dos instrucciones del arranque escriben dentro del propio cartucho:
+
+- **0x4013** deja un `pop hl` y un `ret` encima del `djnz` de 0x412F.
+  Carga `0xC9E1` en HL y lo suelta de golpe: en memoria esos dos bytes
+  son `E1 C9`, que se leen como `pop hl` y `ret`.
+- **0x4040** deja un cero en 0x413B, que no es un dato: es el operando del `jp`
+  de 0x413A. En memoria eso lo convierte en `jp 00000h`, un reinicio en seco.
+
+**Ninguna de las dos hace nada aquí.** El cartucho corre desde ROM, y la ROM no admite
+escritura: por eso parecen código muerto. No lo son. Un cartucho pirateado es una
+copia cargada en **RAM**, y ahí la escritura sí cuela y rompe el juego. Que no
+haga nada en el original es justo la gracia.
+
+No es una idea suelta de este cartucho: el mismo par —una escritura sobre un
+`djnz` y otra sobre el operando de un `jp`— aparece en diez cartuchos de esta
+serie, siempre en las mismas dos rutinas del arranque. Las identificó **Manuel
+Pazos** en su desensamblado del RC-727, donde las llamó `ReadKeys_AC` y
+`VRAM_writeAC`.
+
 ## La demostración es una partida grabada
 
 Cada prueba tiene su cinta de mandos guardada en la ROM, y el bucle la va

@@ -26,8 +26,8 @@ DATA_cabecera_del_cartucho:
 ; La entrada de 0x4010, que en la cabecera del cartucho NO esta declarada como nada: STATEMENT, DEVICE y TEXT valen cero. Lo que hace es escribir 0xC9E1 -que es `pop hl / ret`- en 0x412F, y 0x412F ES ROM: la escritura no llega a ninguna parte. Ahi hubo una automodificacion de cuando el codigo vivia en RAM, y quedo el cadaver.
 ; ----------------------------------------------------------------------
 L_4010:
-	ld hl,0c9e1h		;4010   ; 0xC9E1 son `pop hl` y `ret`, en ese orden
-	ld (0412fh),hl		;4013   ; y 0x412F es ROM: esto no cambia nada, el `djnz` de alli sigue en su sitio
+	ld hl,0c9e1h		;4010   ; 0xC9E1 son, puestos en memoria, los bytes E1 C9: `pop hl` / `ret`
+	ld (0412fh),hl		;4013   ; PROTECCION ANTICOPIA: los bytes 0xE1 0xC9 son `pop hl` y `ret`, y van encima del `djnz` de 0x412F. Desde ROM la escritura NO llega -la ROM no admite escritura- y por eso parece codigo muerto; en una copia cargada en RAM si cuela, y la cadena de la presentacion se corta ahi. Manuel Pazos la identifico en el RC-727, donde esta escrita byte a byte, como ReadKeys_AC
 	jp monta_los_tiles_del_logotipo		;4016   ; lo unico que de verdad hace esta entrada
 
 ; ----------------------------------------------------------------------
@@ -54,8 +54,8 @@ L_4033:
 	ei			;403b
 	ret			;403c
 escribe_registro_del_vdp:		; WRTVDP con el mismo cadaver de automodificacion
-	ld hl,00000h		;403d   ; el segundo cadaver: 0x413B tambien es ROM
-	ld (0413bh),hl		;4040
+	ld hl,00000h		;403d   ; HL a cero: es lo que va a escribir la linea siguiente
+	ld (0413bh),hl		;4040   ; LA OTRA PROTECCION ANTICOPIA: el cero cae en 0x413B, que no es un dato sino el operando del `jp` de 0x413A. Desde ROM no llega; en RAM ese salto se queda en `jp 00000h`, o sea un reinicio en seco. Es la pareja de la de 0x4013, y en el RC-727 son VRAM_writeAC y ReadKeys_AC
 	jp 00047h		;4043   ; BIOS WRTVDP - Writes data in the VDP-register | WRTVDP escribe B en el registro que diga C, y los dos vienen del que llama
 
 ; ----------------------------------------------------------------------

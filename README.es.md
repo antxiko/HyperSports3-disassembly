@@ -15,7 +15,7 @@ desde la propia ROM: en este repositorio no hay ni una captura de pantalla.
 | binario explicado | **100 %** — 0 bytes sin asignar de 32.768 |
 | código / datos | 14.410 / 18.358 bytes |
 | rutinas con nombre | **931** |
-| listado comentado | **34,5 %** — 2.528 comentarios sobre 7.328 instrucciones |
+| listado comentado | **34,5 %** — 2.529 comentarios sobre 7.328 instrucciones |
 | rutinas por debajo del 10 % | **0** |
 | tests | 37 |
 
